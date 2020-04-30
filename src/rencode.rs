@@ -139,6 +139,7 @@ impl<'a> ser::SerializeMap for &'a mut RencodeSerializer {
 }
 
 type Impossible = ser::Impossible<(), Whatever>;
+type Nope = Result<Impossible>;
 
 impl<'a> ser::Serializer for &'a mut RencodeSerializer {
     type Ok = ();
@@ -263,22 +264,22 @@ impl<'a> ser::Serializer for &'a mut RencodeSerializer {
     fn serialize_u16(self, _: u16) -> Result<()> { unimplemented!() }
     fn serialize_u32(self, _: u32) -> Result<()> { unimplemented!() }
     fn serialize_u64(self, _: u64) -> Result<()> { unimplemented!() }
-    fn serialize_struct(self, _: &str, _: usize) -> Result<Self::SerializeStruct> { unimplemented!() }
-    fn serialize_struct_variant(self, _: &str, _: u32, _: &str, _: usize) -> Result<Self::SerializeStructVariant> { unimplemented!() }
+    fn serialize_struct(self, _: &str, _: usize) -> Nope { unimplemented!() }
+    fn serialize_struct_variant(self, _: &str, _: u32, _: &str, _: usize) -> Nope { unimplemented!() }
     fn serialize_unit_struct(self, _: &str) -> Result<()> { unimplemented!() }
     fn serialize_unit_variant(self, _: &str, _: u32, _: &str) -> Result<()> { unimplemented!() }
     fn serialize_newtype_struct<T: ?Sized + Serialize>(self, _: &str, _: &T) -> Result<()> { unimplemented!() }
     fn serialize_newtype_variant<T: ?Sized + Serialize>(self, _: &str, _: u32, _: &str, _: &T) -> Result<()> { unimplemented!() }
-    fn serialize_tuple_struct(self, _: &str, _: usize) -> Result<Self::SerializeTupleStruct> { unimplemented!() }
-    fn serialize_tuple_variant(self, _: &str, _: u32, _: &str, _: usize) -> Result<Self::SerializeTupleVariant> { unimplemented!() }
+    fn serialize_tuple_struct(self, _: &str, _: usize) -> Nope { unimplemented!() }
+    fn serialize_tuple_variant(self, _: &str, _: u32, _: &str, _: usize) -> Nope { unimplemented!() }
 }
 
-struct RencodeDeserializer<'de>(&'de [u8], usize);
+struct RencodeDeserializer<'de> { data: &'de [u8], pos: usize }
 
-pub fn from_bytes<'a, T: Deserialize<'a>>(b: &'a [u8]) -> Result<T> {
-    let mut deserializer = RencodeDeserializer(b, 0);
+pub fn from_bytes<'a, T: Deserialize<'a>>(data: &'a [u8]) -> Result<T> {
+    let mut deserializer = RencodeDeserializer { data, pos: 0 };
     let val = T::deserialize(&mut deserializer)?;
-    if deserializer.1 != deserializer.0.len() {
+    if deserializer.pos != 1 + deserializer.data.len() {
         Ok(val)
     } else {
         Err(DeErr::custom("too many bytes"))
@@ -287,18 +288,22 @@ pub fn from_bytes<'a, T: Deserialize<'a>>(b: &'a [u8]) -> Result<T> {
 
 impl<'de> RencodeDeserializer<'de> {
     fn peek_byte(&self) -> u8 {
-        self.0[self.1]
+        self.data[self.pos]
     }
 
     fn next_byte(&mut self) -> u8 {
         let val = self.peek_byte();
-        self.1 += 1;
+        self.pos += 1;
         val
     }
 
+    fn peek_slice(&self, n: usize) -> &'de [u8] {
+        &self.data[self.pos..self.pos+n]
+    }
+
     fn next_slice(&mut self, n: usize) -> &'de [u8] {
-        let val = &self.0[self.1..self.1+n];
-        self.1 += n;
+        let val = self.peek_slice(n);
+        self.pos += n;
         val
     }
 
@@ -314,8 +319,9 @@ impl<'de> RencodeDeserializer<'de> {
         if let Some(len) = len {
             return std::str::from_utf8(self.next_slice(len)).unwrap();
         }
-        self.1 -= 1; // bit of a terrible hack but whatever
-        let mut splitn = self.0[self.1..].splitn(2, |&c| c == 58);
+        self.pos -= 1; // bit of a terrible hack but whatever
+        // this code assumes well-formed input
+        let mut splitn = self.data[self.pos..].splitn(2, |&c| c == 58);
         let len_str: &str = std::str::from_utf8(splitn.next().unwrap()).unwrap();
         let len = len_str.parse::<usize>().unwrap();
         std::str::from_utf8(&splitn.next().unwrap()[0..len]).unwrap()
