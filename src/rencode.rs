@@ -205,6 +205,13 @@ impl<'a> ser::Serializer for &'a mut RencodeSerializer {
         self.write_i64(v);
         Ok(())
     }
+
+    fn serialize_u64(self, v: u64) -> Result<()> {
+        if v > std::i64::MAX as u64 {
+            return Err(SerErr::custom("unsigned integers are unsupported"));
+        }
+        self.serialize_i64(v as i64)
+    }
     
     fn serialize_f32(self, v: f32) -> Result<()> {
         self.write_u8(types::FLOAT32);
@@ -263,7 +270,6 @@ impl<'a> ser::Serializer for &'a mut RencodeSerializer {
     fn serialize_u8(self, _: u8) -> Result<()> { unimplemented!() }
     fn serialize_u16(self, _: u16) -> Result<()> { unimplemented!() }
     fn serialize_u32(self, _: u32) -> Result<()> { unimplemented!() }
-    fn serialize_u64(self, _: u64) -> Result<()> { unimplemented!() }
     fn serialize_struct(self, _: &str, _: usize) -> Nope { unimplemented!() }
     fn serialize_struct_variant(self, _: &str, _: u32, _: &str, _: usize) -> Nope { unimplemented!() }
     fn serialize_unit_struct(self, _: &str) -> Result<()> { unimplemented!() }
@@ -427,7 +433,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut RencodeDeserializer<'de> {
             0..=43 => visitor.visit_i8(INT_POS_START + x as i8),
             70..=101 => visitor.visit_i8(70 - 1 - x as i8),
 
-            STR_START..=STR_END => visitor.visit_borrowed_str(self.next_str(Some(x as usize))),
+            STR_START..=STR_END => visitor.visit_borrowed_str(self.next_str(Some((x - STR_START) as usize))),
             49..=57 => visitor.visit_borrowed_str(self.next_str(None)),
             58 => Err(DeErr::custom("unexpected strlen terminator")),
 
