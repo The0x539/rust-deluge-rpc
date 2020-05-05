@@ -17,8 +17,8 @@ async fn main() {
     let pass = read_file("./experiment/password");
     let req = rpc_request!("daemon.login", [user, pass]);
 
-    //let val = session.request(req).await.unwrap();
-    //println!("{:?}", val);
+    let val = session.request(req).await.unwrap();
+    println!("{:?}", val);
 
     session.close().await.unwrap();
 }

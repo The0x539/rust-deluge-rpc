@@ -31,7 +31,7 @@ fn decompress(input: &[u8]) -> Vec<u8> {
 pub struct Session {
     stream: WriteHalf<TlsStream<TcpStream>>,
     prev_req_id: i64,
-    listeners: mpsc::Sender<oneshot::Sender<Value>>,
+    listeners: mpsc::Sender<(i64, oneshot::Sender<rpc::Inbound>)>,
     listener_loop: tokio::task::JoinHandle<io::Result<ReadHalf<TlsStream<TcpStream>>>>,
     shutdown_signal: oneshot::Sender<()>,
 }
@@ -88,12 +88,12 @@ impl Session {
         Ok(obj)
     }
 
-    pub async fn request(&mut self, req: rpc::Request) -> io::Result<Value> {
+    pub async fn request(&mut self, req: rpc::Request) -> io::Result<rpc::Inbound> {
         let request = self.prepare_request(req);
         let id = request.0;
 
         let (sender, receiver) = oneshot::channel();
-        self.listeners.send(sender).await.expect("idk");
+        self.listeners.send((id, sender)).await.expect("idk");
 
         self.send(request).await?;
 
@@ -102,19 +102,61 @@ impl Session {
 
     async fn handle_inbound(
         mut stream: ReadHalf<TlsStream<TcpStream>>,
-        listeners: mpsc::Receiver<oneshot::Sender<Value>>,
-        shutdown_signal: oneshot::Receiver<()>,
+        mut listeners: mpsc::Receiver<(i64, oneshot::Sender<rpc::Inbound>)>,
+        mut shutdown_signal: oneshot::Receiver<()>,
     ) -> io::Result<ReadHalf<TlsStream<TcpStream>>> {
-        shutdown_signal.await.map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "wat"))?;
-        Ok(stream)
+        let mut channels = HashMap::new();
+        loop {
+            match shutdown_signal.try_recv() {
+                Ok(()) => return Ok(stream),
+                Err(oneshot::error::TryRecvError::Empty) => (),
+                Err(oneshot::error::TryRecvError::Closed) => {
+                    let err = io::Error::new(io::ErrorKind::BrokenPipe, "shutdown signal channel was closed");
+                    return Err(err);
+                }
+            }
+            match listeners.try_recv() {
+                Ok((id, listener)) => {
+                    if let Some(_) = channels.insert(id, listener) {
+                        panic!("Request ID conflict for ID {}", id);
+                    }
+                },
+                Err(mpsc::error::TryRecvError::Empty) => (),
+                Err(mpsc::error::TryRecvError::Closed) => {
+                    let err = io::Error::new(io::ErrorKind::BrokenPipe, "listener channel was closed");
+                    return Err(err);
+                }
+            }
+            // TODO: this needs to poll non-blockingly like the other two
+            let inbound = Self::recv(&mut stream).await?;
+            match inbound {
+                // TODO: convert the Response and Error variants into an rpc::Result
+                rpc::Inbound::Response { request_id, .. } => {
+                    channels
+                        .remove(&request_id)
+                        .expect("Received response to nonexistent request")
+                        .send(inbound)
+                        .unwrap();
+                }
+                rpc::Inbound::Error { request_id, .. } => {
+                    channels
+                        .remove(&request_id)
+                        .expect("Received error for nonexistent request")
+                        .send(inbound)
+                        .unwrap();
+                }
+                rpc::Inbound::Event { .. } => {
+                    dbg!(inbound);
+                }
+            }
+        }
     }
 
     async fn send(&mut self, req: RequestTuple) -> io::Result<()> {
         let body = compress(&rencode::to_bytes(&[req]).unwrap());
         self.stream.write_u8(1).await?;
         self.stream.write_u32(body.len() as u32).await?;
-        self.stream.write_all(&body).await?;
-        Ok(())
+        self.stream.write_all(&body).await
     }
 
     async fn recv(stream: &mut ReadHalf<TlsStream<TcpStream>>) -> io::Result<rpc::Inbound> {
