@@ -30,7 +30,7 @@ macro_rules! rpc_request {
         $request_id:expr,
         $method:expr,
         [$($arg:expr),*],
-        {$($kw:expr => $kwarg:expr),+}
+        {$($kw:expr => $kwarg:expr),*}
         $(,)?
     ) => {
         {

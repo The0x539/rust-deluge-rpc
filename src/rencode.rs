@@ -85,7 +85,6 @@ impl RencodeSerializer {
     fn write_f64(&mut self, n: f64) { self.0.write_f64::<BE>(n).unwrap(); }
 }
 
-#[allow(dead_code)]
 pub fn to_bytes(value: &impl Serialize) -> Result<Vec<u8>> {
     let mut serializer = RencodeSerializer(vec![], vec![]);
     value.serialize(&mut serializer)?;
@@ -283,7 +282,6 @@ impl<'a> ser::Serializer for &'a mut RencodeSerializer {
 
 struct RencodeDeserializer<'de> { data: &'de [u8], pos: usize }
 
-#[allow(dead_code)]
 pub fn from_bytes<'a, T: Deserialize<'a>>(data: &'a [u8]) -> Result<T> {
     let mut deserializer = RencodeDeserializer { data, pos: 0 };
     let val = T::deserialize(&mut deserializer)?;
