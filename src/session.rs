@@ -1,11 +1,12 @@
 use crate::rencode;
 use crate::rpc;
 
-use tokio_rustls::client::TlsStream;
+use tokio_rustls::{TlsConnector, webpki, client::TlsStream};
 use tokio::net::TcpStream;
 
 use libflate::zlib;
 use std::io::{Read, Write};
+use std::sync::Arc;
 
 use tokio::prelude::*;
 
@@ -27,12 +28,37 @@ pub struct Session {
     request_id: i64,
 }
 
+// This is just a little bit ridiculous.
+// For my use case, I at least have the cert *on my local filesystem*.
+// I'd also be willing to copy it wherever.
+struct NoCertificateVerification;
+
+impl rustls::ServerCertVerifier for NoCertificateVerification {
+    fn verify_server_cert(&self, _: &rustls::RootCertStore, _: &[rustls::Certificate], _: webpki::DNSNameRef<'_>, _: &[u8]) -> Result<rustls::ServerCertVerified, rustls::TLSError> {
+        Ok(rustls::ServerCertVerified::assertion())
+    }
+}
+
 impl Session {
-    pub fn new(stream: TlsStream<TcpStream>) -> Self {
-        Self {
+    pub async fn new(endpoint: impl tokio::net::ToSocketAddrs) -> io::Result<Self> {
+        let mut tls_config = rustls::ClientConfig::new();
+
+        //let server_pem_file = File::open("/home/the0x539/misc_software/dtui/experiment/certs/server.pem").unwrap();
+        //tls_config.root_store.add_pem_file(&mut BufReader::new(pem_file)).unwrap();
+        //tls_config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
+        tls_config.dangerous().set_certificate_verifier(Arc::new(NoCertificateVerification));
+
+        let tls_connector = TlsConnector::from(Arc::new(tls_config));
+
+        let tcp_stream = TcpStream::connect(endpoint).await.unwrap();
+        tcp_stream.set_nodelay(true).unwrap();
+        let stupid_dns_ref = webpki::DNSNameRef::try_from_ascii_str("foo").unwrap();
+        let stream = tls_connector.connect(stupid_dns_ref, tcp_stream).await.unwrap();
+
+        Ok(Self {
             stream,
             request_id: 0,
-        }
+        })
     }
 
     pub async fn send(&mut self, req: rpc::Request) -> io::Result<()> {
@@ -54,7 +80,6 @@ impl Session {
         buf = decompress(&buf);
         let val: serde_json::Value = rencode::from_bytes(&buf).unwrap();
         let data: Vec<serde_json::Value> = val.as_array().unwrap().clone();
-        println!("{:?}", data);
         rpc::Inbound::from(&data).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
     }
 
