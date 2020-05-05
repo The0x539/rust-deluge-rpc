@@ -15,8 +15,7 @@ async fn main() {
     // TODO: move auth into Session::new
     let user = read_file("./experiment/username");
     let pass = read_file("./experiment/password");
-    // TODO: let the Session worry about the request number
-    let req = rpc_request!(37, "daemon.login", [user, pass]);
+    let req = rpc_request!("daemon.login", [user, pass]);
     session.send(req).await.unwrap();
 
     let val = session.recv().await.unwrap();

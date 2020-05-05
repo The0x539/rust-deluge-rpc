@@ -1,3 +1,6 @@
+use serde_json::Value;
+use std::collections::HashMap;
+
 use crate::rencode;
 use crate::rpc;
 
@@ -39,7 +42,14 @@ impl rustls::ServerCertVerifier for NoCertificateVerification {
     }
 }
 
+type RequestTuple = (i64, &'static str, Vec<Value>, HashMap<String, Value>);
+
 impl Session {
+    fn prepare_request(&mut self, request: rpc::Request) -> RequestTuple {
+        self.request_id += 1;
+        (self.request_id, request.method, request.args, request.kwargs)
+    }
+
     pub async fn new(endpoint: impl tokio::net::ToSocketAddrs) -> io::Result<Self> {
         let mut tls_config = rustls::ClientConfig::new();
 
@@ -62,7 +72,7 @@ impl Session {
     }
 
     pub async fn send(&mut self, req: rpc::Request) -> io::Result<()> {
-        let body = compress(&rencode::to_bytes(&[req]).unwrap());
+        let body = compress(&rencode::to_bytes(&[self.prepare_request(req)]).unwrap());
         self.stream.write_u8(1).await?;
         self.stream.write_u32(body.len() as u32).await?;
         self.stream.write_all(&body).await?;
