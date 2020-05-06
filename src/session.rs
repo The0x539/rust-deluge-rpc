@@ -140,17 +140,21 @@ impl Session {
             let inbound = Self::recv(&mut stream).await?;
             match inbound {
                 // TODO: convert the Response and Error variants into an rpc::Result
+
+                // TODO: fix race condition. I make sure to send the listener to this thread first,
+                // but I might still get a response before storing it in the channels object.
+                // Perhaps I could poll for new listeners whenever we get a response.
                 rpc::Inbound::Response { request_id, .. } => {
                     channels
                         .remove(&request_id)
-                        .expect("Received response to nonexistent request")
+                        .expect(format!("Received response to nonexistent request ID {}", request_id).as_str())
                         .send(inbound)
                         .unwrap();
                 }
                 rpc::Inbound::Error { request_id, .. } => {
                     channels
                         .remove(&request_id)
-                        .expect("Received error for nonexistent request")
+                        .expect(format!("Received error for nonexistent request ID {}", request_id).as_str())
                         .send(inbound)
                         .unwrap();
                 }
