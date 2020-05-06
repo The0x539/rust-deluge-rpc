@@ -1,6 +1,6 @@
 use std::io::Write;
 use byteorder::{ReadBytesExt, WriteBytesExt, BE};
-use serde::{ser, Serialize, de, Deserialize, ser::Error as SerErr, de::Error as DeErr};
+use serde::{ser, Serialize, de, Deserialize};
 
 mod types {
     pub const LIST: u8 = 59;
@@ -19,43 +19,45 @@ mod types {
     pub const TERM: u8 = 127;
 }
 
-pub const INT_POS_START: i8 = 0;
-pub const INT_POS_MAX: i8 = 43;
+const INT_POS_START: i8 = 0;
+const INT_POS_MAX: i8 = 43;
 
-pub const INT_NEG_START: i8 = 70;
-pub const INT_NEG_MIN: i8 = -32;
+const INT_NEG_START: i8 = 70;
+const INT_NEG_MIN: i8 = -32;
 
-pub const STR_START: u8 = 128;
-pub const STR_COUNT: usize = 64;
-pub const STR_END: u8 = STR_START - 1 + STR_COUNT as u8;
+const STR_START: u8 = 128;
+const STR_COUNT: usize = 64;
+const STR_END: u8 = STR_START - 1 + STR_COUNT as u8;
 
-pub const LIST_START: u8 = STR_START + STR_COUNT as u8;
-pub const LIST_COUNT: usize = 64;
-pub const LIST_END: u8 = LIST_START - 1 + LIST_COUNT as u8;
+const LIST_START: u8 = STR_START + STR_COUNT as u8;
+const LIST_COUNT: usize = 64;
+const LIST_END: u8 = LIST_START - 1 + LIST_COUNT as u8;
 
-pub const DICT_START: u8 = 102;
-pub const DICT_COUNT: usize = 25;
-pub const DICT_END: u8 = DICT_START - 1 + DICT_COUNT as u8;
+const DICT_START: u8 = 102;
+const DICT_COUNT: usize = 25;
+const DICT_END: u8 = DICT_START - 1 + DICT_COUNT as u8;
 
-#[derive(Debug)]
-pub struct Whatever(String);
-impl std::fmt::Display for Whatever {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+pub mod error {
+    #[derive(Debug)]
+    pub struct Error(String);
+    impl std::fmt::Display for Error {
+        fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+    impl std::error::Error for Error {}
+    impl serde::de::Error for Error {
+        fn custom<T: std::fmt::Display>(msg: T) -> Self {
+            Self(format!("{}", msg))
+        }
+    }
+    impl serde::ser::Error for Error {
+        fn custom<T: std::fmt::Display>(msg: T) -> Self {
+            Self(format!("{}", msg))
+        }
     }
 }
-impl std::error::Error for Whatever {}
-impl DeErr for Whatever {
-    fn custom<T: std::fmt::Display>(msg: T) -> Self {
-        Self(format!("{}", msg))
-    }
-}
-impl SerErr for Whatever {
-    fn custom<T: std::fmt::Display>(msg: T) -> Self {
-        Self(format!("{}", msg))
-    }
-}
-type Result<T> = std::result::Result<T, Whatever>;
+pub type Result<T> = std::result::Result<T, self::error::Error>;
 
 struct RencodeSerializer(Vec<u8>, Vec<usize>);
 
@@ -81,7 +83,7 @@ pub fn to_bytes(value: &impl Serialize) -> Result<Vec<u8>> {
 // Stuff I do need
 impl<'a> ser::SerializeSeq for &'a mut RencodeSerializer {
     type Ok = ();
-    type Error = Whatever;
+    type Error = self::error::Error;
     fn serialize_element<T: ?Sized + Serialize>(&mut self, v: &T) -> Result<()> {
         v.serialize(&mut **self)
     }
@@ -95,7 +97,7 @@ impl<'a> ser::SerializeSeq for &'a mut RencodeSerializer {
 
 impl<'a> ser::SerializeTuple for &'a mut RencodeSerializer {
     type Ok = ();
-    type Error = Whatever;
+    type Error = self::error::Error;
     fn serialize_element<T: ?Sized + Serialize>(&mut self, v: &T) -> Result<()> {
         v.serialize(&mut **self)
     }
@@ -109,7 +111,7 @@ impl<'a> ser::SerializeTuple for &'a mut RencodeSerializer {
 
 impl<'a> ser::SerializeMap for &'a mut RencodeSerializer {
     type Ok = ();
-    type Error = Whatever;
+    type Error = self::error::Error;
     fn serialize_key<T: ?Sized + Serialize>(&mut self, v: &T) -> Result<()> {
         v.serialize(&mut **self)
     }
@@ -124,12 +126,12 @@ impl<'a> ser::SerializeMap for &'a mut RencodeSerializer {
     }
 }
 
-type Impossible = ser::Impossible<(), Whatever>;
+type Impossible = ser::Impossible<(), self::error::Error>;
 type Nope = Result<Impossible>;
 
 impl<'a> ser::Serializer for &'a mut RencodeSerializer {
     type Ok = ();
-    type Error = Whatever;
+    type Error = self::error::Error;
 
     type SerializeSeq = Self;
     type SerializeTuple = Self;
@@ -194,7 +196,7 @@ impl<'a> ser::Serializer for &'a mut RencodeSerializer {
 
     fn serialize_u64(self, v: u64) -> Result<()> {
         if v > std::i64::MAX as u64 {
-            return Err(SerErr::custom("unsigned integers are unsupported"));
+            return Err(ser::Error::custom("unsigned integers are unsupported"));
         }
         self.serialize_i64(v as i64)
     }
@@ -227,7 +229,7 @@ impl<'a> ser::Serializer for &'a mut RencodeSerializer {
     }
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
-        self.serialize_tuple(len.ok_or(SerErr::custom("try .collect()"))?)
+        self.serialize_tuple(len.ok_or(ser::Error::custom("try .collect()"))?)
     }
 
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
@@ -241,7 +243,7 @@ impl<'a> ser::Serializer for &'a mut RencodeSerializer {
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
-        let len = len.ok_or(SerErr::custom("need to know map size ahead of time"))?;
+        let len = len.ok_or(ser::Error::custom("need to know map size ahead of time"))?;
         if len < DICT_COUNT {
             self.write_u8(DICT_START + len as u8);
         } else {
@@ -274,7 +276,7 @@ pub fn from_bytes<'a, T: Deserialize<'a>>(data: &'a [u8]) -> Result<T> {
     if deserializer.pos != 1 + deserializer.data.len() {
         Ok(val)
     } else {
-        Err(DeErr::custom("too many bytes"))
+        Err(de::Error::custom("too many bytes"))
     }
 }
 
@@ -323,7 +325,7 @@ impl<'de> RencodeDeserializer<'de> {
 struct FixedLengthSeq<'a, 'de: 'a>(&'a mut RencodeDeserializer<'de>, usize);
 
 impl<'de, 'a> de::SeqAccess<'de> for FixedLengthSeq<'a, 'de> {
-    type Error = Whatever;
+    type Error = self::error::Error;
 
     fn next_element_seed<T: de::DeserializeSeed<'de>>(&mut self, seed: T) -> Result<Option<T::Value>> {
         if self.1 == 0 {
@@ -337,7 +339,7 @@ impl<'de, 'a> de::SeqAccess<'de> for FixedLengthSeq<'a, 'de> {
 struct FixedLengthMap<'a, 'de: 'a>(&'a mut RencodeDeserializer<'de>, usize, bool);
 
 impl<'de, 'a> de::MapAccess<'de> for FixedLengthMap<'a, 'de> {
-    type Error = Whatever;
+    type Error = self::error::Error;
 
     fn next_key_seed<T: de::DeserializeSeed<'de>>(&mut self, seed: T) -> Result<Option<T::Value>> {
         if self.2 {
@@ -363,7 +365,7 @@ impl<'de, 'a> de::MapAccess<'de> for FixedLengthMap<'a, 'de> {
 struct TerminatedSeq<'a, 'de: 'a>(&'a mut RencodeDeserializer<'de>);
 
 impl<'de, 'a> de::SeqAccess<'de> for TerminatedSeq<'a, 'de> {
-    type Error = Whatever;
+    type Error = self::error::Error;
 
     fn next_element_seed<T: de::DeserializeSeed<'de>>(&mut self, seed: T) -> Result<Option<T::Value>> {
         if self.0.peek_byte() == types::TERM {
@@ -376,7 +378,7 @@ impl<'de, 'a> de::SeqAccess<'de> for TerminatedSeq<'a, 'de> {
 struct TerminatedMap<'a, 'de: 'a>(&'a mut RencodeDeserializer<'de>, bool);
 
 impl<'de, 'a> de::MapAccess<'de> for TerminatedMap<'a, 'de> {
-    type Error = Whatever;
+    type Error = self::error::Error;
 
     fn next_key_seed<T: de::DeserializeSeed<'de>>(&mut self, seed: T) -> Result<Option<T::Value>> {
         if self.1 {
@@ -399,7 +401,7 @@ impl<'de, 'a> de::MapAccess<'de> for TerminatedMap<'a, 'de> {
 }
 
 impl<'de, 'a> de::Deserializer<'de> for &'a mut RencodeDeserializer<'de> {
-    type Error = Whatever;
+    type Error = self::error::Error;
 
     fn deserialize_any<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
         let x = self.next_byte();
@@ -421,7 +423,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut RencodeDeserializer<'de> {
 
             STR_START..=STR_END => visitor.visit_borrowed_str(self.next_str(Some((x - STR_START) as usize))),
             49..=57 => visitor.visit_borrowed_str(self.next_str(None)),
-            58 => Err(DeErr::custom("unexpected strlen terminator")),
+            58 => Err(de::Error::custom("unexpected strlen terminator")),
 
             LIST_START..=LIST_END => visitor.visit_seq(FixedLengthSeq(self, (x - LIST_START) as usize)),
             types::LIST => visitor.visit_seq(TerminatedSeq(self)),
@@ -429,9 +431,9 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut RencodeDeserializer<'de> {
             DICT_START..=DICT_END => visitor.visit_map(FixedLengthMap(self, (x - DICT_START) as usize, false)),
             types::DICT => visitor.visit_map(TerminatedMap(self, false)),
 
-            types::TERM => Err(DeErr::custom("unexpected list/dict terminator")),
+            types::TERM => Err(de::Error::custom("unexpected list/dict terminator")),
 
-            45..=48 => Err(DeErr::custom("I don't know what values 45-48 are supposed to mean")),
+            45..=48 => Err(de::Error::custom("I don't know what values 45-48 are supposed to mean")),
         }
     }
 
