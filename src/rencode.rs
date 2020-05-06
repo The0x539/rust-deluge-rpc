@@ -2,35 +2,21 @@ use std::io::Write;
 use byteorder::{ReadBytesExt, WriteBytesExt, BE};
 use serde::{ser, Serialize, de, Deserialize, ser::Error as SerErr, de::Error as DeErr};
 
-macro_rules! pseudo_enum {
-    (
-        $(#![$g_attr:meta])*
-        $vis:vis $name:ident: $type:ty;
-        $(
-            $(#[$attr:meta])*
-            $variant:ident = $value:expr$(,)?
-         )*
-    ) => {
-        #[allow(non_snake_case, non_upper_case_globals)]
-        $vis mod $name {
-            $(#![$g_attr])*
-            $(
-                $(#[$attr])*
-                pub const $variant: $type = $value;
-             )*
-        }
-    }
-}
-
-pseudo_enum! {
-    types: u8;
-    LIST = 59, DICT = 60,
-    #[allow(dead_code)] INT = 61,
-    INT1 = 62, INT2 = 63, INT4 = 64, INT8 = 65,
-    FLOAT32 = 66, FLOAT64 = 44,
-    TRUE = 67, FALSE = 68,
-    NONE = 69,
-    TERM = 127,
+mod types {
+    pub const LIST: u8 = 59;
+    pub const DICT: u8 = 60;
+    #[allow(dead_code)]
+    pub const INT: u8 = 61;
+    pub const INT1: u8 = 62;
+    pub const INT2: u8 = 63;
+    pub const INT4: u8 = 64;
+    pub const INT8: u8 = 65;
+    pub const FLOAT32: u8 = 66;
+    pub const FLOAT64: u8 = 44;
+    pub const TRUE: u8 = 67;
+    pub const FALSE: u8 = 68;
+    pub const NONE: u8 = 69;
+    pub const TERM: u8 = 127;
 }
 
 pub const INT_POS_START: i8 = 0;
