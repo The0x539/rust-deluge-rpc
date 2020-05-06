@@ -15,6 +15,11 @@ use tokio::prelude::*;
 use tokio::sync::{oneshot, mpsc};
 use tokio::io::{ReadHalf, WriteHalf};
 
+type ReadStream = ReadHalf<TlsStream<TcpStream>>;
+type WriteStream = WriteHalf<TlsStream<TcpStream>>;
+type RequestTuple = (i64, &'static str, Vec<Value>, HashMap<String, Value>);
+type RpcSender = (i64, oneshot::Sender<rpc::Inbound>);
+
 fn compress(input: &[u8]) -> Vec<u8> {
     let mut encoder = zlib::Encoder::new(Vec::new()).unwrap();
     encoder.write_all(input).unwrap();
@@ -28,11 +33,19 @@ fn decompress(input: &[u8]) -> Vec<u8> {
     buf
 }
 
+fn broken_pipe_err(channel_name: &'static str) -> io::Error {
+    io::Error::new(io::ErrorKind::BrokenPipe, format!("unexpected closure of {} channel", channel_name))
+}
+
+fn invalid_data_err(e: impl Into<Box<dyn std::error::Error + 'static + Send + Sync>>) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, e)
+}
+
 pub struct Session {
-    stream: WriteHalf<TlsStream<TcpStream>>,
+    stream: WriteStream,
     prev_req_id: i64,
-    listeners: mpsc::Sender<(i64, oneshot::Sender<rpc::Inbound>)>,
-    listener_loop: tokio::task::JoinHandle<io::Result<ReadHalf<TlsStream<TcpStream>>>>,
+    listeners: mpsc::Sender<RpcSender>,
+    listener_loop: tokio::task::JoinHandle<io::Result<ReadStream>>,
     shutdown_signal: oneshot::Sender<()>,
 }
 
@@ -46,8 +59,6 @@ impl rustls::ServerCertVerifier for NoCertificateVerification {
         Ok(rustls::ServerCertVerified::assertion())
     }
 }
-
-type RequestTuple = (i64, &'static str, Vec<Value>, HashMap<String, Value>);
 
 impl Session {
     fn prepare_request(&mut self, request: rpc::Request) -> RequestTuple {
@@ -93,26 +104,25 @@ impl Session {
         let id = request.0;
 
         let (sender, receiver) = oneshot::channel();
-        self.listeners.send((id, sender)).await.expect("idk");
+        self.listeners.send((id, sender)).await.map_err(|_| broken_pipe_err("rpc listeners"))?;
 
         self.send(request).await?;
 
-        receiver.await.map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "wat"))
+        receiver.await.map_err(|_| broken_pipe_err("rpc response"))
     }
 
     async fn handle_inbound(
-        mut stream: ReadHalf<TlsStream<TcpStream>>,
-        mut listeners: mpsc::Receiver<(i64, oneshot::Sender<rpc::Inbound>)>,
+        mut stream: ReadStream,
+        mut listeners: mpsc::Receiver<RpcSender>,
         mut shutdown_signal: oneshot::Receiver<()>,
-    ) -> io::Result<ReadHalf<TlsStream<TcpStream>>> {
+    ) -> io::Result<ReadStream> {
         let mut channels = HashMap::new();
         loop {
             match shutdown_signal.try_recv() {
                 Ok(()) => return Ok(stream),
                 Err(oneshot::error::TryRecvError::Empty) => (),
                 Err(oneshot::error::TryRecvError::Closed) => {
-                    let err = io::Error::new(io::ErrorKind::BrokenPipe, "shutdown signal channel was closed");
-                    return Err(err);
+                    return Err(broken_pipe_err("shutdown signal"));
                 }
             }
             match listeners.try_recv() {
@@ -123,8 +133,7 @@ impl Session {
                 },
                 Err(mpsc::error::TryRecvError::Empty) => (),
                 Err(mpsc::error::TryRecvError::Closed) => {
-                    let err = io::Error::new(io::ErrorKind::BrokenPipe, "listener channel was closed");
-                    return Err(err);
+                    return Err(broken_pipe_err("rpc listeners"));
                 }
             }
             // TODO: this needs to poll non-blockingly like the other two
@@ -159,7 +168,7 @@ impl Session {
         self.stream.write_all(&body).await
     }
 
-    async fn recv(stream: &mut ReadHalf<TlsStream<TcpStream>>) -> io::Result<rpc::Inbound> {
+    async fn recv(stream: &mut ReadStream) -> io::Result<rpc::Inbound> {
         let ver = stream.read_u8().await?;
         if ver != 1 {
             panic!("unsupported DelugeRPC protocol version");
@@ -170,11 +179,11 @@ impl Session {
         buf = decompress(&buf);
         let val: serde_json::Value = rencode::from_bytes(&buf).unwrap();
         let data: Vec<serde_json::Value> = val.as_array().unwrap().clone();
-        rpc::Inbound::from(&data).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+        rpc::Inbound::from(&data).map_err(|e| invalid_data_err(e))
     }
 
     pub async fn close(self) -> io::Result<()> {
-        self.shutdown_signal.send(()).map_err(|_| io::Error::new(io::ErrorKind::BrokenPipe, "wat"))?;
+        self.shutdown_signal.send(()).map_err(|_| broken_pipe_err("shutdown signal"))?;
         let read_half = self.listener_loop.await??;
         let mut stream = read_half.unsplit(self.stream);
         stream.shutdown().await
