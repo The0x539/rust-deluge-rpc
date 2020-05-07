@@ -158,9 +158,11 @@ impl Session {
 
     async fn send(&mut self, req: RequestTuple) -> io::Result<()> {
         let body = compress(&rencode::to_bytes(&[req]).unwrap());
-        self.stream.write_u8(1).await?;
-        self.stream.write_u32(body.len() as u32).await?;
-        self.stream.write_all(&body).await
+        let mut msg = Vec::with_capacity(1 + 4 + body.len());
+        byteorder::WriteBytesExt::write_u8(&mut msg, 1).unwrap();
+        byteorder::WriteBytesExt::write_u32::<byteorder::BE>(&mut msg, body.len() as u32).unwrap();
+        std::io::Write::write_all(&mut msg, &body).unwrap();
+        self.stream.write_all(&msg).await
     }
 
     async fn recv(stream: &mut ReadStream) -> io::Result<rpc::Inbound> {
