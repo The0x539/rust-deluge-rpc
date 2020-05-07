@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use serde_json::{self, Value};
+use serde::de;
 
 // NOTE: the server should receive a (serialized) list of these, not one
 #[derive(Clone)]
@@ -69,22 +70,27 @@ pub enum Inbound {
 }
 
 impl Inbound {
-    pub fn from(data: &[Value]) -> std::result::Result<Self, serde_json::error::Error> {
-        let msg_type: i64 = serde_json::from_value(data[0].clone())?;
+    pub fn from(data: &[Value]) -> serde_json::Result<Self> {
+        use serde_json::from_value;
+        let msg_type: i64 = from_value(data[0].clone())?;
         let val = match msg_type {
             RPC_RESPONSE | RPC_ERROR => Inbound::Response {
-                request_id: serde_json::from_value(data[1].clone())?,
+                request_id: from_value(data[1].clone())?,
                 result: match msg_type {
-                    RPC_RESPONSE => Ok(serde_json::from_value(data[2].clone())?),
+                    RPC_RESPONSE => Ok(from_value(data[2].clone())?),
                     RPC_ERROR => Err(Error(data[2..].to_vec())),
                     _ => unreachable!(),
                 },
             },
             RPC_EVENT => Inbound::Event {
-                event_name: serde_json::from_value(data[1].clone())?,
-                data: serde_json::from_value(data[2].clone())?,
+                event_name: from_value(data[1].clone())?,
+                data: from_value(data[2].clone())?,
             },
-            _ => panic!(),
+            _ => {
+                let unexp = de::Unexpected::Signed(msg_type);
+                let exp = &"a known message type (1, 2, or 3)";
+                return Err(de::Error::invalid_value(unexp, exp));
+            },
         };
         Ok(val)
     }
