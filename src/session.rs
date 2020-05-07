@@ -18,7 +18,7 @@ use tokio::io::{ReadHalf, WriteHalf};
 type ReadStream = ReadHalf<TlsStream<TcpStream>>;
 type WriteStream = WriteHalf<TlsStream<TcpStream>>;
 type RequestTuple = (i64, &'static str, Vec<Value>, HashMap<String, Value>);
-type RpcSender = (i64, oneshot::Sender<rpc::Inbound>);
+type RpcSender = (i64, oneshot::Sender<rpc::Result>);
 
 fn compress(input: &[u8]) -> Vec<u8> {
     let mut encoder = zlib::Encoder::new(Vec::new()).unwrap();
@@ -99,7 +99,7 @@ impl Session {
         Ok(obj)
     }
 
-    pub async fn request(&mut self, req: rpc::Request) -> io::Result<rpc::Inbound> {
+    pub async fn request(&mut self, req: rpc::Request) -> io::Result<rpc::Result> {
         let request = self.prepare_request(req);
         let id = request.0;
 
@@ -137,29 +137,20 @@ impl Session {
                 }
             }
             // TODO: this needs to poll non-blockingly like the other two
-            let inbound = Self::recv(&mut stream).await?;
-            match inbound {
-                // TODO: convert the Response and Error variants into an rpc::Result
-
+            match Self::recv(&mut stream).await? {
                 // TODO: fix race condition. I make sure to send the listener to this thread first,
                 // but I might still get a response before storing it in the channels object.
                 // Perhaps I could poll for new listeners whenever we get a response.
-                rpc::Inbound::Response { request_id, .. } => {
+                rpc::Inbound::Response { request_id, result } => {
                     channels
                         .remove(&request_id)
-                        .expect(format!("Received response to nonexistent request ID {}", request_id).as_str())
-                        .send(inbound)
+                        .expect(&format!("Received result for nonexistent request ID {}", request_id))
+                        .send(result)
                         .unwrap();
                 }
-                rpc::Inbound::Error { request_id, .. } => {
-                    channels
-                        .remove(&request_id)
-                        .expect(format!("Received error for nonexistent request ID {}", request_id).as_str())
-                        .send(inbound)
-                        .unwrap();
-                }
-                rpc::Inbound::Event { .. } => {
-                    dbg!(inbound);
+                rpc::Inbound::Event { event_name, data } => {
+                    // TODO: Event handler registration or something
+                    println!("Received event {}: {:?}", event_name, data);
                 }
             }
         }

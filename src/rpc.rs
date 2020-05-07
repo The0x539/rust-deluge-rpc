@@ -41,50 +41,50 @@ macro_rules! rpc_request {
     };
 }
 
-const RPC_RESPONSE: u64 = 1; 
-const RPC_ERROR: u64 = 2;
-const RPC_EVENT: u64 = 3;
+const RPC_RESPONSE: i64 = 1;
+const RPC_ERROR: i64 = 2;
+const RPC_EVENT: i64 = 3;
 
+// TODO: Determine what we can expect from the server
+// Make this data structure less free-form accordingly
 #[derive(Debug)]
-pub enum Inbound {
-    Response {
-        request_id: i64,
-        return_value: Vec<Value>,
-    },
-    Error {
-        request_id: i64,
-        exception_type: String,
-        exception_msg: Vec<Value>,
-        traceback: String,
-    },
-    Event {
-        event_name: String,
-        data: Vec<Value>,
+pub struct Error(Vec<Value>);
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        // Won't panic because we know we can serialize a Vec<Value>
+        let s = serde_json::to_string_pretty(&self.0).unwrap();
+        f.write_str(&s)
     }
 }
 
+impl std::error::Error for Error {}
+
+pub type Result = std::result::Result<Vec<Value>, Error>;
+
+#[derive(Debug)]
+pub enum Inbound {
+    Response { request_id: i64, result: Result },
+    Event { event_name: String, data: Vec<Value> },
+}
+
 impl Inbound {
-    pub fn from(data: &[Value]) -> Result<Self, &str> {
-        let msg_type = data[0].as_u64().ok_or("data[0] isn't int")?;
+    pub fn from(data: &[Value]) -> std::result::Result<Self, serde_json::error::Error> {
+        let msg_type: i64 = serde_json::from_value(data[0].clone())?;
         let val = match msg_type {
-            RPC_RESPONSE => Inbound::Response {
-                request_id: data[1].as_i64().ok_or("data[1] isn't int")?,
-                return_value: data[2].as_array().cloned().ok_or("data[2] isn't list")?,
-            },
-            RPC_ERROR => Inbound::Error {
-                request_id: data[1].as_i64().ok_or("data[1] isn't int")?,
-                exception_type: data[2].as_str().map(String::from).ok_or("data[2] isn't str")?,
-                exception_msg: data[3].as_array().cloned().ok_or("data[3] isn't str")?,
-                traceback: data[5].as_str().map(String::from).ok_or("data[5] isn't str")?,
+            RPC_RESPONSE | RPC_ERROR => Inbound::Response {
+                request_id: serde_json::from_value(data[1].clone())?,
+                result: match msg_type {
+                    RPC_RESPONSE => Ok(serde_json::from_value(data[2].clone())?),
+                    RPC_ERROR => Err(Error(data[2..].to_vec())),
+                    _ => unreachable!(),
+                },
             },
             RPC_EVENT => Inbound::Event {
-                event_name: data[1].as_str().map(String::from).ok_or("data[1] isn't str")?,
-                data: data[2].as_array().cloned().ok_or("data[2] isn't list")?,
+                event_name: serde_json::from_value(data[1].clone())?,
+                data: serde_json::from_value(data[2].clone())?,
             },
-            _ => {
-                println!("unrecognized event type: {}", msg_type);
-                return Err("unrecognized event type");
-            }
+            _ => panic!(),
         };
         Ok(val)
     }
