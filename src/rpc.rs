@@ -77,7 +77,7 @@ impl Inbound {
             RPC_RESPONSE | RPC_ERROR => Inbound::Response {
                 request_id: from_value(data[1].clone())?,
                 result: match msg_type {
-                    RPC_RESPONSE => Ok(from_value(data[2].clone())?),
+                    RPC_RESPONSE => Ok(from_value(data[2].clone()).unwrap_or(vec![data[2].clone()])),
                     RPC_ERROR => Err(Error(data[2..].to_vec())),
                     _ => unreachable!(),
                 },
