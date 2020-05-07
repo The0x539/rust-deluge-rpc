@@ -268,12 +268,12 @@ impl<'a> ser::Serializer for &'a mut RencodeSerializer {
     fn serialize_tuple_variant(self, _: &str, _: u32, _: &str, _: usize) -> Nope { unimplemented!() }
 }
 
-struct RencodeDeserializer<'de> { data: &'de [u8], pos: usize }
+struct RencodeDeserializer<'de> { data: &'de [u8] }
 
 pub fn from_bytes<'a, T: Deserialize<'a>>(data: &'a [u8]) -> Result<T> {
-    let mut deserializer = RencodeDeserializer { data, pos: 0 };
+    let mut deserializer = RencodeDeserializer { data };
     let val = T::deserialize(&mut deserializer)?;
-    if deserializer.pos != 1 + deserializer.data.len() {
+    if deserializer.data.len() == 0 {
         Ok(val)
     } else {
         Err(de::Error::custom("too many bytes"))
@@ -281,23 +281,27 @@ pub fn from_bytes<'a, T: Deserialize<'a>>(data: &'a [u8]) -> Result<T> {
 }
 
 impl<'de> RencodeDeserializer<'de> {
+    fn advance(&mut self, n: usize) {
+        self.data = &self.data[n..];
+    }
+
     fn peek_byte(&self) -> u8 {
-        self.data[self.pos]
+        self.data[0]
     }
 
     fn next_byte(&mut self) -> u8 {
         let val = self.peek_byte();
-        self.pos += 1;
+        self.advance(1);
         val
     }
 
     fn peek_slice(&self, n: usize) -> &'de [u8] {
-        &self.data[self.pos..self.pos+n]
+        &self.data[..n]
     }
 
     fn next_slice(&mut self, n: usize) -> &'de [u8] {
         let val = self.peek_slice(n);
-        self.pos += n;
+        self.advance(n);
         val
     }
 
@@ -309,16 +313,19 @@ impl<'de> RencodeDeserializer<'de> {
     fn next_f32(&mut self) -> f32 { self.next_slice(4).read_f32::<BE>().unwrap() }
     fn next_f64(&mut self) -> f64 { self.next_slice(8).read_f64::<BE>().unwrap() }
 
-    fn next_str(&mut self, len: Option<usize>) -> &'de str {
-        if let Some(len) = len {
-            return std::str::from_utf8(self.next_slice(len)).unwrap();
-        }
-        self.pos -= 1; // bit of a terrible hack but whatever
+    fn next_str_fixed(&mut self, len: usize) -> &'de str {
+        std::str::from_utf8(self.next_slice(len)).unwrap()
+    }
+
+    fn next_str_terminated(&mut self, first_byte: u8) -> &'de str {
         // this code assumes well-formed input
-        let mut splitn = self.data[self.pos..].splitn(2, |&c| c == 58);
-        let len_str: &str = std::str::from_utf8(splitn.next().unwrap()).unwrap();
-        let len = len_str.parse::<usize>().unwrap();
-        std::str::from_utf8(&splitn.next().unwrap()[0..len]).unwrap()
+        let mut splitn = self.data.splitn(2, |&x| x == 58);
+        let mut len_bytes: Vec<u8> = splitn.next().unwrap().to_vec();
+        len_bytes.insert(0, first_byte); // this is the only time we'd need to peek for deserialize_any
+        let len_str: &str = std::str::from_utf8(&len_bytes).unwrap();
+        self.advance(len_str.len()); // the missing first byte and the terminating ':' cancel each other out
+        let len: usize = len_str.parse().unwrap();
+        std::str::from_utf8(self.next_slice(len)).unwrap()
     }
 }
 
@@ -404,8 +411,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut RencodeDeserializer<'de> {
     type Error = self::error::Error;
 
     fn deserialize_any<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-        let x = self.next_byte();
-        match x {
+        match self.next_byte() {
             types::NONE => visitor.visit_unit(),
             types::TRUE => visitor.visit_bool(true),
             types::FALSE => visitor.visit_bool(false),
@@ -418,17 +424,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut RencodeDeserializer<'de> {
             types::FLOAT32 => visitor.visit_f32(self.next_f32()),
             types::FLOAT64 => visitor.visit_f64(self.next_f64()),
 
-            0..=43 => visitor.visit_i8(INT_POS_START + x as i8),
-            70..=101 => visitor.visit_i8(70 - 1 - x as i8),
+            x @ 0..=43 => visitor.visit_i8(INT_POS_START + x as i8),
+            x @ 70..=101 => visitor.visit_i8(70 - 1 - x as i8),
 
-            STR_START..=STR_END => visitor.visit_borrowed_str(self.next_str(Some((x - STR_START) as usize))),
-            49..=57 => visitor.visit_borrowed_str(self.next_str(None)),
+            x @ STR_START..=STR_END => visitor.visit_borrowed_str(self.next_str_fixed((x - STR_START) as usize)),
+            x @ 49..=57 => visitor.visit_borrowed_str(self.next_str_terminated(x)),
             58 => Err(de::Error::custom("unexpected strlen terminator")),
 
-            LIST_START..=LIST_END => visitor.visit_seq(FixedLengthSeq(self, (x - LIST_START) as usize)),
+            x @ LIST_START..=LIST_END => visitor.visit_seq(FixedLengthSeq(self, (x - LIST_START) as usize)),
             types::LIST => visitor.visit_seq(TerminatedSeq(self)),
 
-            DICT_START..=DICT_END => visitor.visit_map(FixedLengthMap(self, (x - DICT_START) as usize, false)),
+            x @ DICT_START..=DICT_END => visitor.visit_map(FixedLengthMap(self, (x - DICT_START) as usize, false)),
             types::DICT => visitor.visit_map(TerminatedMap(self, false)),
 
             types::TERM => Err(de::Error::custom("unexpected list/dict terminator")),
