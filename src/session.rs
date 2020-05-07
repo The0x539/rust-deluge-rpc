@@ -18,7 +18,7 @@ use tokio::io::{ReadHalf, WriteHalf};
 type ReadStream = ReadHalf<TlsStream<TcpStream>>;
 type WriteStream = WriteHalf<TlsStream<TcpStream>>;
 type RequestTuple = (i64, &'static str, Vec<Value>, HashMap<String, Value>);
-type RpcSender = (i64, oneshot::Sender<rpc::Result>);
+type RpcSender = oneshot::Sender<rpc::Result>;
 
 fn compress(input: &[u8]) -> Vec<u8> {
     let mut encoder = zlib::Encoder::new(Vec::new()).unwrap();
@@ -44,7 +44,7 @@ fn invalid_data_err(e: impl Into<Box<dyn std::error::Error + 'static + Send + Sy
 pub struct Session {
     stream: WriteStream,
     prev_req_id: i64,
-    listeners: mpsc::Sender<RpcSender>,
+    listeners: mpsc::Sender<(i64, RpcSender)>,
     listener_loop: tokio::task::JoinHandle<io::Result<ReadStream>>,
     shutdown_signal: oneshot::Sender<()>,
 }
@@ -113,7 +113,7 @@ impl Session {
 
     async fn handle_inbound(
         mut stream: ReadStream,
-        mut listeners: mpsc::Receiver<RpcSender>,
+        mut listeners: mpsc::Receiver<(i64, RpcSender)>,
         mut shutdown_signal: oneshot::Receiver<()>,
     ) -> io::Result<ReadStream> {
         let mut channels = HashMap::new();
@@ -121,27 +121,15 @@ impl Session {
             match shutdown_signal.try_recv() {
                 Ok(()) => return Ok(stream),
                 Err(oneshot::error::TryRecvError::Empty) => (),
-                Err(oneshot::error::TryRecvError::Closed) => {
-                    return Err(broken_pipe_err("shutdown signal"));
-                }
+                Err(oneshot::error::TryRecvError::Closed) => return Err(broken_pipe_err("shutdown signal")),
             }
-            match listeners.try_recv() {
-                Ok((id, listener)) => {
-                    if let Some(_) = channels.insert(id, listener) {
-                        panic!("Request ID conflict for ID {}", id);
-                    }
-                },
-                Err(mpsc::error::TryRecvError::Empty) => (),
-                Err(mpsc::error::TryRecvError::Closed) => {
-                    return Err(broken_pipe_err("rpc listeners"));
-                }
-            }
-            // TODO: this needs to poll non-blockingly like the other two
             match Self::recv(&mut stream).await? {
-                // TODO: fix race condition. I make sure to send the listener to this thread first,
-                // but I might still get a response before storing it in the channels object.
-                // Perhaps I could poll for new listeners whenever we get a response.
                 rpc::Inbound::Response { request_id, result } => {
+                    // request() always sends the listener oneshot before invoking RPC
+                    // therefore, if we're handling a valid response, it's guaranteed that the
+                    // request's oneshot either is already in our hashmap or is in the mpsc.
+                    // doing this here turns that guarantee of (A or B) into a guarantee of A.
+                    Self::update_listeners(&mut channels, &mut listeners).await?;
                     channels
                         .remove(&request_id)
                         .expect(&format!("Received result for nonexistent request ID {}", request_id))
@@ -152,6 +140,20 @@ impl Session {
                     // TODO: Event handler registration or something
                     println!("Received event {}: {:?}", event_name, data);
                 }
+            }
+        }
+    }
+
+    async fn update_listeners(channels: &mut HashMap<i64, RpcSender>, listeners: &mut mpsc::Receiver<(i64, RpcSender)>) -> io::Result<()> {
+        loop {
+            match listeners.try_recv() {
+                Ok((id, listener)) => {
+                    // This is unrealistic if request IDs are chosen sanely.
+                    assert!(!channels.contains_key(&id), "Request ID conflict for ID {}", id);
+                    channels.insert(id, listener);
+                },
+                Err(mpsc::error::TryRecvError::Empty) => return Ok(()),
+                Err(mpsc::error::TryRecvError::Closed) => return Err(broken_pipe_err("rpc listeners")),
             }
         }
     }
