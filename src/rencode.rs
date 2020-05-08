@@ -59,9 +59,9 @@ pub mod error {
 }
 pub type Result<T> = std::result::Result<T, self::error::Error>;
 
-struct RencodeSerializer(Vec<u8>, Vec<usize>);
+struct RencodeSerializer<W: Write>(W, Vec<usize>);
 
-impl RencodeSerializer {
+impl<W: Write> RencodeSerializer<W> {
     // This is a Vec, so if these writes fail, we have bigger problems.
     fn write_all(&mut self, buf: &[u8]) { self.0.write_all(buf).unwrap(); }
     fn write_u8(&mut self, n: u8) { self.0.write_u8(n).unwrap(); }
@@ -81,7 +81,7 @@ pub fn to_bytes(value: &impl Serialize) -> Result<Vec<u8>> {
 }
 
 // Stuff I do need
-impl<'a> ser::SerializeSeq for &'a mut RencodeSerializer {
+impl<'a, W: Write> ser::SerializeSeq for &'a mut RencodeSerializer<W> {
     type Ok = ();
     type Error = self::error::Error;
     fn serialize_element<T: ?Sized + Serialize>(&mut self, v: &T) -> Result<()> {
@@ -95,7 +95,7 @@ impl<'a> ser::SerializeSeq for &'a mut RencodeSerializer {
     }
 }
 
-impl<'a> ser::SerializeTuple for &'a mut RencodeSerializer {
+impl<'a, W: Write> ser::SerializeTuple for &'a mut RencodeSerializer<W> {
     type Ok = ();
     type Error = self::error::Error;
     fn serialize_element<T: ?Sized + Serialize>(&mut self, v: &T) -> Result<()> {
@@ -109,7 +109,7 @@ impl<'a> ser::SerializeTuple for &'a mut RencodeSerializer {
     }
 }
 
-impl<'a> ser::SerializeMap for &'a mut RencodeSerializer {
+impl<'a, W: Write> ser::SerializeMap for &'a mut RencodeSerializer<W> {
     type Ok = ();
     type Error = self::error::Error;
     fn serialize_key<T: ?Sized + Serialize>(&mut self, v: &T) -> Result<()> {
@@ -129,7 +129,7 @@ impl<'a> ser::SerializeMap for &'a mut RencodeSerializer {
 type Impossible = ser::Impossible<(), self::error::Error>;
 type Nope = Result<Impossible>;
 
-impl<'a> ser::Serializer for &'a mut RencodeSerializer {
+impl<'a, W: Write> ser::Serializer for &'a mut RencodeSerializer<W> {
     type Ok = ();
     type Error = self::error::Error;
 
