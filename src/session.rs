@@ -45,8 +45,6 @@ pub struct Session {
     stream: WriteStream,
     prev_req_id: i64,
     listeners: mpsc::Sender<(i64, RpcSender)>,
-    listener_loop: tokio::task::JoinHandle<io::Result<ReadStream>>,
-    shutdown_signal: oneshot::Sender<()>,
 }
 
 // This is just a little bit ridiculous.
@@ -84,16 +82,13 @@ impl Session {
         let (reader, writer) = io::split(stream);
 
         let (request_send, request_recv) = mpsc::channel(100);
-        let (shutdown_send, shutdown_recv) = oneshot::channel();
 
-        let listener_loop = tokio::spawn(Self::handle_inbound(reader, request_recv, shutdown_recv));
+        tokio::spawn(Self::handle_inbound(reader, request_recv));
 
         let obj = Self {
             stream: writer,
             prev_req_id: 0,
             listeners: request_send,
-            listener_loop,
-            shutdown_signal: shutdown_send,
         };
 
         Ok(obj)
@@ -114,15 +109,9 @@ impl Session {
     async fn handle_inbound(
         mut stream: ReadStream,
         mut listeners: mpsc::Receiver<(i64, RpcSender)>,
-        mut shutdown_signal: oneshot::Receiver<()>,
     ) -> io::Result<ReadStream> {
         let mut channels = HashMap::new();
         loop {
-            match shutdown_signal.try_recv() {
-                Ok(()) => return Ok(stream),
-                Err(oneshot::error::TryRecvError::Empty) => (),
-                Err(oneshot::error::TryRecvError::Closed) => return Err(broken_pipe_err("shutdown signal")),
-            }
             match Self::recv(&mut stream).await? {
                 rpc::Inbound::Response { request_id, result } => {
                     // request() always sends the listener oneshot before invoking RPC
@@ -181,10 +170,7 @@ impl Session {
         rpc::Inbound::from(&data).map_err(|e| invalid_data_err(e))
     }
 
-    pub async fn close(self) -> io::Result<()> {
-        self.shutdown_signal.send(()).map_err(|_| broken_pipe_err("shutdown signal"))?;
-        let read_half = self.listener_loop.await??;
-        let mut stream = read_half.unsplit(self.stream);
-        stream.shutdown().await
+    pub async fn close(mut self) -> io::Result<()> {
+        self.stream.shutdown().await
     }
 }
