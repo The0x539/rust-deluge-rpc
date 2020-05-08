@@ -73,11 +73,16 @@ impl<W: Write> RencodeSerializer<W> {
     fn write_f64(&mut self, n: f64) { self.0.write_f64::<BE>(n).unwrap(); }
 }
 
-pub fn to_bytes(value: &impl Serialize) -> Result<Vec<u8>> {
-    let mut serializer = RencodeSerializer(vec![], vec![]);
+pub fn to_writer(writer: &mut impl Write, value: &impl Serialize) -> Result<()> {
+    let mut serializer = RencodeSerializer(writer, vec![]);
     value.serialize(&mut serializer)?;
-    serializer.0.flush().unwrap();
-    Ok(serializer.0)
+    serializer.0.flush().map_err(|e| ser::Error::custom(e))
+}
+
+pub fn to_bytes(value: &impl Serialize) -> Result<Vec<u8>> {
+    let mut buf = Vec::new();
+    to_writer(&mut buf, value)?;
+    Ok(buf)
 }
 
 // Stuff I do need
