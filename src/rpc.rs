@@ -61,11 +61,11 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-pub type Result = std::result::Result<Vec<Value>, Error>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Inbound {
-    Response { request_id: i64, result: Result },
+    Response { request_id: i64, result: Result<Vec<Value>> },
     Event { event_name: String, data: Vec<Value> },
 }
 

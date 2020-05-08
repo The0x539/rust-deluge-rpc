@@ -18,7 +18,7 @@ use tokio::io::{ReadHalf, WriteHalf};
 type ReadStream = ReadHalf<TlsStream<TcpStream>>;
 type WriteStream = WriteHalf<TlsStream<TcpStream>>;
 type RequestTuple = (i64, &'static str, Vec<Value>, HashMap<String, Value>);
-type RpcSender = oneshot::Sender<rpc::Result>;
+type RpcSender = oneshot::Sender<rpc::Result<Vec<Value>>>;
 
 fn compress(input: &[u8]) -> Vec<u8> {
     let mut encoder = zlib::Encoder::new(Vec::new()).unwrap();
@@ -135,6 +135,27 @@ impl Session {
         (self.prev_req_id, request.method, request.args, request.kwargs)
     }
 
+    async fn send(&mut self, req: RequestTuple) -> io::Result<()> {
+        let body = compress(&rencode::to_bytes(&[req]).unwrap());
+        let mut msg = Vec::with_capacity(1 + 4 + body.len());
+        byteorder::WriteBytesExt::write_u8(&mut msg, 1).unwrap();
+        byteorder::WriteBytesExt::write_u32::<byteorder::BE>(&mut msg, body.len() as u32).unwrap();
+        std::io::Write::write_all(&mut msg, &body).unwrap();
+        self.stream.write_all(&msg).await
+    }
+
+    pub async fn request(&mut self, req: rpc::Request) -> io::Result<rpc::Result<Vec<Value>>> {
+        let request = self.prepare_request(req);
+        let id = request.0;
+
+        let (sender, receiver) = oneshot::channel();
+        self.listeners.send((id, sender)).await.map_err(|_| broken_pipe_err("rpc listeners"))?;
+
+        self.send(request).await?;
+
+        receiver.await.map_err(|_| broken_pipe_err("rpc response"))
+    }
+
     pub async fn new(endpoint: impl tokio::net::ToSocketAddrs) -> io::Result<Self> {
         let mut tls_config = rustls::ClientConfig::new();
         //let server_pem_file = File::open("/home/the0x539/misc_software/dtui/experiment/certs/server.pem").unwrap();
@@ -154,27 +175,6 @@ impl Session {
         MessageReceiver::spawn(reader, request_recv);
 
         Ok(Self { stream: writer, prev_req_id: 0, listeners: request_send })
-    }
-
-    pub async fn request(&mut self, req: rpc::Request) -> io::Result<rpc::Result> {
-        let request = self.prepare_request(req);
-        let id = request.0;
-
-        let (sender, receiver) = oneshot::channel();
-        self.listeners.send((id, sender)).await.map_err(|_| broken_pipe_err("rpc listeners"))?;
-
-        self.send(request).await?;
-
-        receiver.await.map_err(|_| broken_pipe_err("rpc response"))
-    }
-
-    async fn send(&mut self, req: RequestTuple) -> io::Result<()> {
-        let body = compress(&rencode::to_bytes(&[req]).unwrap());
-        let mut msg = Vec::with_capacity(1 + 4 + body.len());
-        byteorder::WriteBytesExt::write_u8(&mut msg, 1).unwrap();
-        byteorder::WriteBytesExt::write_u32::<byteorder::BE>(&mut msg, body.len() as u32).unwrap();
-        std::io::Write::write_all(&mut msg, &body).unwrap();
-        self.stream.write_all(&msg).await
     }
 
     pub async fn close(mut self) -> io::Result<()> {
