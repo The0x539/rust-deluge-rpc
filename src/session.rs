@@ -243,6 +243,19 @@ impl Session {
         }
     }
 
+    // TODO: make private and add register_event_handler function that takes a channel or closure
+    // (haven't decided which) and possibly an enum
+    #[allow(dead_code)]
+    pub async fn set_event_interest(&mut self, events: &[&str]) -> Result<()> {
+        let request = rpc_request!("daemon.set_event_interest", [events]);
+        let val = self.request(request).await?;
+        if let [Value::Bool(true)] = val.as_slice() {
+            Ok(())
+        } else {
+            Err(Error::from(val))
+        }
+    }
+
     pub async fn close(mut self) -> Result<()> {
         self.stream.shutdown().await?;
         Ok(())
