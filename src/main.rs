@@ -19,5 +19,5 @@ async fn main() {
     let auth_level = session.login(&user, &pass).await.unwrap();
     println!("Auth level: {}", auth_level);
 
-    session.shutdown().await.unwrap();
+    session.close().await.unwrap();
 }

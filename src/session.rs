@@ -257,6 +257,13 @@ impl Session {
         self.close().await
     }
 
+    pub async fn get_method_list<T: FromIterator<String>>(&mut self) -> Result<T> {
+        let val = request!(self, "daemon.get_method_list");
+        val.into_iter()
+            .map(|x| expect!(x, Value::String(s), "a string", Ok(s)))
+            .collect()
+    }
+
     pub async fn close(mut self) -> Result<()> {
         self.stream.shutdown().await?;
         Ok(())
