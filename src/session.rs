@@ -282,6 +282,16 @@ impl Session {
         expect_seq!(val, Value::String(s), "a string", s)
     }
 
+    pub async fn get_session_state<T: FromIterator<String>>(&mut self) -> Result<T> {
+        let val = request!(self, "core.get_session_state");
+        expect_seq!(val, Value::String(s), "a string", s)
+    }
+
+    pub async fn get_torrent_status(&mut self, torrent_id: &str, keys: &[&str]) -> Result<HashMap<String, Value>> {
+        let val = request!(self, "core.get_torrent_status", [torrent_id, keys]);
+        expect_val!(val, Value::Object(m), "a map", m.into_iter().collect())
+    }
+
     pub async fn close(mut self) -> Result<()> {
         self.stream.shutdown().await?;
         Ok(())
