@@ -209,6 +209,11 @@ macro_rules! filter {
     }
 }
 
+// TODO: derive macro
+pub trait Query: for<'de> Deserialize<'de> {
+    fn keys() -> &'static [&'static str];
+}
+
 #[allow(dead_code)]
 impl Session {
     fn prepare_request(&mut self, request: rpc::Request) -> RequestTuple {
@@ -301,26 +306,19 @@ impl Session {
         expect_seq!(val, Value::String(s), "a string", s)
     }
 
-    pub async fn get_torrent_status<T>(
-        &mut self,
-        torrent_id: &str,
-        keys: &[&str]
-    ) -> Result<T>
-        where T: for<'de> Deserialize<'de>
-    {
-        let val = request!(self, "core.get_torrent_status", [torrent_id, keys]);
+    pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &str) -> Result<T> {
+        let val = request!(self, "core.get_torrent_status", [torrent_id, T::keys()]);
         expect_val!(val, m @ Value::Object(_), "a torrent's status", serde_json::from_value(m).unwrap())
     }
 
     pub async fn get_torrents_status<T, U>(
         &mut self,
         filter_dict: Option<HashMap<String, Value>>,
-        keys: &[&str],
     ) -> Result<U>
-        where T: for<'de> Deserialize<'de>,
+        where T: Query,
               U: FromIterator<(String, T)>
     {
-        let val = request!(self, "core.get_torrents_status", [filter_dict, keys]);
+        let val = request!(self, "core.get_torrents_status", [filter_dict, T::keys()]);
         let ret = expect_val!(val, Value::Object(m), "a map of torrents' statuses", m)?
             .into_iter()
             .map(|(id, status)| (id, serde_json::from_value(status).unwrap()))
