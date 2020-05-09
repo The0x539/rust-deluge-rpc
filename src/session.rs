@@ -162,12 +162,20 @@ macro_rules! request {
     }
 }
 
+macro_rules! expect {
+    ($val:expr, $pat:pat, $expected:expr, $result:expr) => {
+        match $val {
+            $pat => Ok($result),
+            x => Err(Error::expected($expected, x)),
+        }
+    }
+}
+
 macro_rules! expect_val {
     ($val:expr, $pat:pat, $expected:expr, $result:expr) => {
-        if let [$pat] = &$val[..] {
-            Ok($result.into())
-        } else {
-            Err(Error::expected($expected, $val))
+        match $val.len() {
+            1 => expect!($val.into_iter().next().unwrap(), $pat, $expected, $result),
+            _ => Err(Error::expected(std::concat!("a list containing only ", $expected), $val)),
         }
     }
 }
