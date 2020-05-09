@@ -250,6 +250,13 @@ impl Session {
         )
     }
 
+    #[allow(dead_code)]
+    pub async fn shutdown(mut self) -> Result<()> {
+        let val = request!(self, "daemon.shutdown");
+        expect!(val = [], "an empty list", Ok(()))?;
+        self.close().await
+    }
+
     pub async fn close(mut self) -> Result<()> {
         self.stream.shutdown().await?;
         Ok(())
