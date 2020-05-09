@@ -171,6 +171,12 @@ impl rustls::ServerCertVerifier for NoCertificateVerification {
     }
 }
 
+macro_rules! request {
+    ($self:ident, $($arg:tt),*$(,)?) => {
+        $self.request(rpc_request!($($arg),*)).await?
+    }
+}
+
 impl Session {
     fn prepare_request(&mut self, request: rpc::Request) -> RequestTuple {
         self.prev_req_id += 1;
@@ -224,8 +230,7 @@ impl Session {
     }
 
     pub async fn daemon_info(&mut self) -> Result<String> {
-        let request = rpc_request!("daemon.info");
-        let val = self.request(request).await?;
+        let val = request!(self, "daemon.info");
         if let [Value::String(version)] = val.as_slice() {
             Ok(version.to_string())
         } else {
@@ -234,8 +239,7 @@ impl Session {
     }
 
     pub async fn login(&mut self, username: &str, password: &str) -> Result<i64> {
-        let request = rpc_request!("daemon.login", [username, password], {"client_version" => "2.0.4.dev23"});
-        let val = self.request(request).await?;
+        let val = request!(self, "daemon.login", [username, password], {"client_version" => "2.0.4.dev23"});
         if let [Value::Number(num)] = val.as_slice() {
             num.as_i64().ok_or(Error::from(num))
         } else {
@@ -247,8 +251,7 @@ impl Session {
     // (haven't decided which) and possibly an enum
     #[allow(dead_code)]
     pub async fn set_event_interest(&mut self, events: &[&str]) -> Result<()> {
-        let request = rpc_request!("daemon.set_event_interest", [events]);
-        let val = self.request(request).await?;
+        let val = request!(self, "daemon.set_event_interest", [events]);
         if let [Value::Bool(true)] = val.as_slice() {
             Ok(())
         } else {
