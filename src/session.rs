@@ -162,13 +162,28 @@ macro_rules! request {
     }
 }
 
-macro_rules! expect {
-    ($val:expr, $pat:pat, $expected:literal, $result:expr) => {
-        if let $pat = $val {
-            $result
+macro_rules! expect_val {
+    ($val:expr, $pat:pat, $expected:expr, $result:expr) => {
+        if let [$pat] = &$val[..] {
+            Ok($result.into())
         } else {
             Err(Error::expected($expected, $val))
         }
+    }
+}
+
+macro_rules! expect_seq {
+    ($val:expr, $pat:pat, $expected_val:literal, $result:expr) => {
+        $val.into_iter()
+            .map(|x| match x {
+                $pat => Ok($result.into()),
+                v => {
+                    let expected = std::concat!("a list where every item is ", $expected_val);
+                    let actual = format!("a list containing {:?}", v);
+                    Err(Error::expected(expected, actual))
+                }
+            })
+            .collect()
     }
 }
 
@@ -227,17 +242,17 @@ impl Session {
 
     pub async fn daemon_info(&mut self) -> Result<String> {
         let val = request!(self, "daemon.info");
-        expect!(
-            val.as_slice(), [Value::String(version)], "a version number string",
-            Ok(version.to_string())
-        )
+        expect_val!(val, Value::String(version), "a version number string", version)
     }
 
     pub async fn login(&mut self, username: &str, password: &str) -> Result<i64> {
         let val = request!(self, "daemon.login", [username, password], {"client_version" => "2.0.4.dev23"});
-        expect!(
-            val.as_slice(), [Value::Number(num)], "an i64 auth level",
-            num.as_i64().ok_or(Error::expected("an i64", Value::Number(num.clone())))
+        expect_val!(
+            val, Value::Number(num), "an i64 auth level",
+            match num.as_i64() {
+                Some(n) => n,
+                None => return Err(Error::expected("an i64", Value::Number(num.clone()))),
+            }
         )
     }
 
@@ -245,23 +260,18 @@ impl Session {
     // (haven't decided which) and possibly an enum
     pub async fn set_event_interest(&mut self, events: &[&str]) -> Result<()> {
         let val = request!(self, "daemon.set_event_interest", [events]);
-        expect!(
-            val.as_slice(), [Value::Bool(true)], "true",
-            Ok(())
-        )
+        expect_val!(val, Value::Bool(true), "true", ())
     }
 
     pub async fn shutdown(mut self) -> Result<()> {
         let val = request!(self, "daemon.shutdown");
-        expect!(val.as_slice(), [Value::Null], "null", Ok(()))?;
+        expect_val!(val, Value::Null, "null", ())?;
         self.close().await
     }
 
     pub async fn get_method_list<T: FromIterator<String>>(&mut self) -> Result<T> {
         let val = request!(self, "daemon.get_method_list");
-        val.into_iter()
-            .map(|x| expect!(x, Value::String(s), "a string", Ok(s)))
-            .collect()
+        expect_seq!(val, Value::String(s), "a string", s)
     }
 
     pub async fn close(mut self) -> Result<()> {
