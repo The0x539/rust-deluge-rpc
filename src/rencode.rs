@@ -381,6 +381,7 @@ impl<'de, 'a> de::SeqAccess<'de> for TerminatedSeq<'a, 'de> {
 
     fn next_element_seed<T: de::DeserializeSeed<'de>>(&mut self, seed: T) -> Result<Option<T::Value>> {
         if self.0.peek_byte() == types::TERM {
+            self.0.advance(1);
             return Ok(None);
         }
         seed.deserialize(&mut *self.0).map(Some)
@@ -397,6 +398,7 @@ impl<'de, 'a> de::MapAccess<'de> for TerminatedMap<'a, 'de> {
             panic!("tried to get a key inappropriately");
         }
         if self.0.peek_byte() == types::TERM {
+            self.0.advance(1);
             return Ok(None);
         }
         self.1 = true;
