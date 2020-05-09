@@ -3,8 +3,17 @@ mod rencode;
 mod session;
 use session::Session;
 
+use std::collections::HashMap;
+
+use serde::Deserialize;
+
 fn read_file(path: &'static str) -> String {
     std::fs::read_to_string(path).unwrap()
+}
+
+#[derive(Deserialize, Debug)]
+struct Row {
+    name: String,
 }
 
 #[tokio::main()]
@@ -19,7 +28,7 @@ async fn main() {
     let auth_level = session.login(&user, &pass).await.unwrap();
     println!("Auth level: {}", auth_level);
 
-    let statuses = session.get_torrents_status::<Vec<_>>(None, &["name"]).await.unwrap();
+    let statuses: HashMap<String, Row> = session.get_torrents_status(None, &["name"]).await.unwrap();
     for status in statuses {
         println!("{:?}", status);
     }

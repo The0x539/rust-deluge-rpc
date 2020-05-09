@@ -1,4 +1,5 @@
 use serde_json::{Value, Map};
+use serde::Deserialize;
 use std::collections::HashMap;
 
 use crate::rencode;
@@ -292,18 +293,21 @@ impl Session {
         expect_val!(val, Value::Object(m), "a torrent's status", m.into_iter().collect())
     }
 
-    // Probably easiest to invoke this using *json!({...}).as_object()
-    // This thing expects dynamic types, so any statically typed API for it is gonna be insane
-    // Consider making a macro to specifically construct serde_json Map structs
-    //pub async fn get_torrents_status<T: FromIterator<HashMap<String, Value>>>(
-    pub async fn get_torrents_status<T: FromIterator<(String, HashMap<String, Value>)>>(
+    pub async fn get_torrents_status<T, U>(
         &mut self,
         filter_dict: Option<Map<String, Value>>,
         keys: &[&str],
-    ) -> Result<T> {
+    ) -> Result<U>
+        where T: for<'de> Deserialize<'de>,
+              U: FromIterator<(String, T)>
+    {
         let val = request!(self, "core.get_torrents_status", [filter_dict, keys]);
-        let torrents = expect_val!(val, Value::Object(m), "a map of torrents' statuses", m)?;
-        expect_seq!(torrents, (id, Value::Object(status)), "a torrent's status", (id, status.into_iter().collect()))
+        let ret = expect_val!(val, Value::Object(m), "a map of torrents' statuses", m)?
+            .into_iter()
+            // TODO: serde_json is probably not the best way to transcode
+            .map(|(id, status)| (id, serde_json::from_value(status).unwrap()))
+            .collect();
+        Ok(ret)
     }
 
     pub async fn close(mut self) -> Result<()> {
