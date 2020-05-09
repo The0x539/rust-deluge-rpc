@@ -1,6 +1,7 @@
 mod rencode;
 mod rpc;
 #[macro_use] mod session;
+mod error;
 use session::Session;
 
 use std::collections::HashMap;
