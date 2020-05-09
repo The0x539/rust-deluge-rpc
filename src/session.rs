@@ -157,9 +157,40 @@ impl rustls::ServerCertVerifier for NoCertificateVerification {
     }
 }
 
-macro_rules! request {
+macro_rules! build_request {
+    (
+        $method:expr,
+        [$($arg:expr),*],
+        {$($kw:expr => $kwarg:expr),*}
+        $(,)?
+    ) => {
+        {
+            use maplit::hashmap;
+            $crate::rpc::Request {
+                method: $method,
+                args: vec![$(serde_json::json!($arg)),*],
+                kwargs: maplit::convert_args!(
+                    keys=String::from,
+                    values=serde_json::Value::from,
+                    hashmap!($($kw => $kwarg),*)
+                ),
+            }
+        }
+    };
+    ($method:expr, [$($arg:expr),*] $(,)?) => {
+        build_request!($method, [$($arg),*], {})
+    };
+    ($method:expr, {$($kw:expr => $kwarg:expr),+} $(,)?) => {
+        build_request!($method, [], {$($kw => $kwarg),*})
+    };
+    ($method:expr $(,)?) => {
+        build_request!($method, [], {})
+    };
+}
+
+macro_rules! make_request {
     ($self:ident, $($arg:tt),*$(,)?) => {
-        $self.request(rpc_request!($($arg),*)).await?
+        $self.request(build_request!($($arg),*)).await?
     }
 }
 
@@ -268,12 +299,12 @@ impl Session {
     }
 
     pub async fn daemon_info(&mut self) -> Result<String> {
-        let val = request!(self, "daemon.info");
+        let val = make_request!(self, "daemon.info");
         expect_val!(val, Value::String(version), "a version number string", version)
     }
 
     pub async fn login(&mut self, username: &str, password: &str) -> Result<i64> {
-        let val = request!(self, "daemon.login", [username, password], {"client_version" => "2.0.4.dev23"});
+        let val = make_request!(self, "daemon.login", [username, password], {"client_version" => "2.0.4.dev23"});
         expect_val!(
             val, Value::Number(num), "an i64 auth level",
             match num.as_i64() {
@@ -286,28 +317,28 @@ impl Session {
     // TODO: make private and add register_event_handler function that takes a channel or closure
     // (haven't decided which) and possibly an enum
     pub async fn set_event_interest(&mut self, events: &[&str]) -> Result<()> {
-        let val = request!(self, "daemon.set_event_interest", [events]);
+        let val = make_request!(self, "daemon.set_event_interest", [events]);
         expect_val!(val, Value::Bool(true), "true", ())
     }
 
     pub async fn shutdown(mut self) -> Result<()> {
-        let val = request!(self, "daemon.shutdown");
+        let val = make_request!(self, "daemon.shutdown");
         expect_val!(val, Value::Null, "null", ())?;
         self.close().await
     }
 
     pub async fn get_method_list<T: FromIterator<String>>(&mut self) -> Result<T> {
-        let val = request!(self, "daemon.get_method_list");
+        let val = make_request!(self, "daemon.get_method_list");
         expect_seq!(val, Value::String(s), "a string", s)
     }
 
     pub async fn get_session_state<T: FromIterator<String>>(&mut self) -> Result<T> {
-        let val = request!(self, "core.get_session_state");
+        let val = make_request!(self, "core.get_session_state");
         expect_seq!(val, Value::String(s), "a string", s)
     }
 
     pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &str) -> Result<T> {
-        let val = request!(self, "core.get_torrent_status", [torrent_id, T::keys()]);
+        let val = make_request!(self, "core.get_torrent_status", [torrent_id, T::keys()]);
         expect_val!(val, m @ Value::Object(_), "a torrent's status", serde_json::from_value(m).unwrap())
     }
 
@@ -318,7 +349,7 @@ impl Session {
         where T: Query,
               U: FromIterator<(String, T)>
     {
-        let val = request!(self, "core.get_torrents_status", [filter_dict, T::keys()]);
+        let val = make_request!(self, "core.get_torrents_status", [filter_dict, T::keys()]);
         let ret = expect_val!(val, Value::Object(m), "a map of torrents' statuses", m)?
             .into_iter()
             .map(|(id, status)| (id, serde_json::from_value(status).unwrap()))

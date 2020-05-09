@@ -10,37 +10,6 @@ pub struct Request {
     pub kwargs: HashMap<String, Value>,
 }
 
-macro_rules! rpc_request {
-    (
-        $method:expr,
-        [$($arg:expr),*],
-        {$($kw:expr => $kwarg:expr),*}
-        $(,)?
-    ) => {
-        {
-            use maplit::hashmap;
-            $crate::rpc::Request {
-                method: $method,
-                args: vec![$(serde_json::json!($arg)),*],
-                kwargs: maplit::convert_args!(
-                    keys=String::from,
-                    values=serde_json::Value::from,
-                    hashmap!($($kw => $kwarg),*)
-                ),
-            }
-        }
-    };
-    ($method:expr, [$($arg:expr),*] $(,)?) => {
-        rpc_request!($method, [$($arg),*], {})
-    };
-    ($method:expr, {$($kw:expr => $kwarg:expr),+} $(,)?) => {
-        rpc_request!($method, [], {$($kw => $kwarg),*})
-    };
-    ($method:expr $(,)?) => {
-        rpc_request!($method, [], {})
-    };
-}
-
 const RPC_RESPONSE: i64 = 1;
 const RPC_ERROR: i64 = 2;
 const RPC_EVENT: i64 = 3;

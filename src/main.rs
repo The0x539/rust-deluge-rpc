@@ -1,5 +1,5 @@
 mod rencode;
-#[macro_use] mod rpc;
+mod rpc;
 #[macro_use] mod session;
 use session::Session;
 
