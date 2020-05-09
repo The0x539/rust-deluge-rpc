@@ -1,4 +1,4 @@
-use serde_json::Value;
+use serde_json::{Value, Map};
 use std::collections::HashMap;
 
 use crate::rencode;
@@ -289,7 +289,21 @@ impl Session {
 
     pub async fn get_torrent_status(&mut self, torrent_id: &str, keys: &[&str]) -> Result<HashMap<String, Value>> {
         let val = request!(self, "core.get_torrent_status", [torrent_id, keys]);
-        expect_val!(val, Value::Object(m), "a map", m.into_iter().collect())
+        expect_val!(val, Value::Object(m), "a torrent's status", m.into_iter().collect())
+    }
+
+    // Probably easiest to invoke this using *json!({...}).as_object()
+    // This thing expects dynamic types, so any statically typed API for it is gonna be insane
+    // Consider making a macro to specifically construct serde_json Map structs
+    //pub async fn get_torrents_status<T: FromIterator<HashMap<String, Value>>>(
+    pub async fn get_torrents_status<T: FromIterator<(String, HashMap<String, Value>)>>(
+        &mut self,
+        filter_dict: Option<Map<String, Value>>,
+        keys: &[&str],
+    ) -> Result<T> {
+        let val = request!(self, "core.get_torrents_status", [filter_dict, keys]);
+        let torrents = expect_val!(val, Value::Object(m), "a map of torrents' statuses", m)?;
+        expect_seq!(torrents, (id, Value::Object(status)), "a torrent's status", (id, status.into_iter().collect()))
     }
 
     pub async fn close(mut self) -> Result<()> {

@@ -19,10 +19,9 @@ async fn main() {
     let auth_level = session.login(&user, &pass).await.unwrap();
     println!("Auth level: {}", auth_level);
 
-    let torrent_ids: Vec<String> = session.get_session_state().await.unwrap();
-    for t in torrent_ids {
-        let status = session.get_torrent_status(&t, &["name"]).await.unwrap();
-        println!("{}", serde_json::to_string(&status).unwrap());
+    let statuses = session.get_torrents_status::<Vec<_>>(None, &["name"]).await.unwrap();
+    for status in statuses {
+        println!("{:?}", status);
     }
 
     session.close().await.unwrap();

@@ -48,7 +48,7 @@ const RPC_EVENT: i64 = 3;
 // TODO: Determine what we can expect from the server
 // Make this data structure less free-form accordingly
 #[derive(Debug)]
-pub struct Error(Vec<Value>);
+pub struct Error(pub Vec<Value>);
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
