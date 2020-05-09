@@ -37,37 +37,21 @@ fn decompress(input: &[u8]) -> Vec<u8> {
 pub enum Error {
     Network(io::Error),
     Rpc(rpc::Error),
-    BadResponse(Value),
+    BadResponse(&'static str, Value),
     ChannelClosed(&'static str),
 }
 
-// This could probably be a bit less boilerplate-y
+impl Error {
+    pub fn expected(exp: &'static str, val: impl Into<Value>) -> Self {
+        Self::BadResponse(exp, val.into())
+    }
+}
+
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self { Self::Network(e) }
 }
 impl From<rpc::Error> for Error {
     fn from(e: rpc::Error) -> Self { Self::Rpc(e) }
-}
-impl From<Value> for Error {
-    fn from(v: Value) -> Self { Self::BadResponse(v) }
-}
-impl From<&Value> for Error {
-    fn from(v: &Value) -> Self { v.clone().into() }
-}
-impl From<&[Value]> for Error {
-    fn from(v: &[Value]) -> Self { Value::from(v).into() }
-}
-impl From<Vec<Value>> for Error {
-    fn from(v: Vec<Value>) -> Self { Value::from(v).into() }
-}
-impl From<&Vec<Value>> for Error {
-    fn from(v: &Vec<Value>) -> Self { v.as_slice().into() }
-}
-impl From<serde_json::Number> for Error {
-    fn from(v: serde_json::Number) -> Self { Value::Number(v).into() }
-}
-impl From<&serde_json::Number> for Error {
-    fn from(v: &serde_json::Number) -> Self { v.clone().into() }
 }
 
 impl std::fmt::Debug for Error {
@@ -75,7 +59,7 @@ impl std::fmt::Debug for Error {
         match self {
             Self::Network(e) => e.fmt(f),
             Self::Rpc(e) => e.fmt(f),
-            Self::BadResponse(v) => v.fmt(f),
+            Self::BadResponse(s, v) => write!(f, "Expected {}, got {}", s, serde_json::to_string(v).unwrap()),
             Self::ChannelClosed(s) => write!(f, "Unexpected closure of {} channel", s),
         }
     }
@@ -117,8 +101,8 @@ impl MessageReceiver {
         self.stream.read_exact(&mut buf).await?;
         buf = decompress(&buf);
         let val: Value = rencode::from_bytes(&buf).unwrap();
-        let data = val.as_array().ok_or(Error::from(&val))?;
-        rpc::Inbound::from(data).map_err(|_| Error::from(data))
+        let data = val.as_array().ok_or(Error::expected("a list", val.clone()))?;
+        rpc::Inbound::from(data).map_err(|_| Error::expected("a valid RPC message", data.as_slice()))
     }
 
     async fn update_listeners(&mut self) -> Result<()> {
@@ -177,6 +161,16 @@ macro_rules! request {
     }
 }
 
+macro_rules! expect {
+    ($val:ident = $pat:pat, $expected:literal, $result:expr) => {
+        if let $pat = $val.as_slice() {
+            $result
+        } else {
+            Err(Error::expected($expected, $val))
+        }
+    }
+}
+
 impl Session {
     fn prepare_request(&mut self, request: rpc::Request) -> RequestTuple {
         self.prev_req_id += 1;
@@ -231,20 +225,18 @@ impl Session {
 
     pub async fn daemon_info(&mut self) -> Result<String> {
         let val = request!(self, "daemon.info");
-        if let [Value::String(version)] = val.as_slice() {
+        expect!(
+            val = [Value::String(version)], "a version number string",
             Ok(version.to_string())
-        } else {
-            Err(Error::from(val))
-        }
+        )
     }
 
     pub async fn login(&mut self, username: &str, password: &str) -> Result<i64> {
         let val = request!(self, "daemon.login", [username, password], {"client_version" => "2.0.4.dev23"});
-        if let [Value::Number(num)] = val.as_slice() {
-            num.as_i64().ok_or(Error::from(num))
-        } else {
-            Err(Error::from(val))
-        }
+        expect!(
+            val = [Value::Number(num)], "an i64 auth level",
+            num.as_i64().ok_or(Error::expected("an i64", Value::Number(num.clone())))
+        )
     }
 
     // TODO: make private and add register_event_handler function that takes a channel or closure
@@ -252,11 +244,10 @@ impl Session {
     #[allow(dead_code)]
     pub async fn set_event_interest(&mut self, events: &[&str]) -> Result<()> {
         let val = request!(self, "daemon.set_event_interest", [events]);
-        if let [Value::Bool(true)] = val.as_slice() {
+        expect!(
+            val = [Value::Bool(true)], "true",
             Ok(())
-        } else {
-            Err(Error::from(val))
-        }
+        )
     }
 
     pub async fn close(mut self) -> Result<()> {
