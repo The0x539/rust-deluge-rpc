@@ -16,7 +16,7 @@ async fn main() {
 
     let user = read_file("./experiment/username");
     let pass = read_file("./experiment/password");
-    let auth_level = session.login(&user, &pass).await.unwrap().unwrap();
+    let auth_level = session.login(&user, &pass).await.unwrap();
     println!("Auth level: {}", auth_level);
 
     session.close().await.unwrap();
