@@ -10,6 +10,7 @@ use tokio::net::TcpStream;
 use libflate::zlib;
 use std::io::{Read, Write};
 use std::sync::Arc;
+use std::iter::FromIterator;
 
 use tokio::prelude::*;
 use tokio::sync::{oneshot, mpsc};
@@ -162,8 +163,8 @@ macro_rules! request {
 }
 
 macro_rules! expect {
-    ($val:ident = $pat:pat, $expected:literal, $result:expr) => {
-        if let $pat = $val.as_slice() {
+    ($val:expr, $pat:pat, $expected:literal, $result:expr) => {
+        if let $pat = $val {
             $result
         } else {
             Err(Error::expected($expected, $val))
@@ -171,6 +172,7 @@ macro_rules! expect {
     }
 }
 
+#[allow(dead_code)]
 impl Session {
     fn prepare_request(&mut self, request: rpc::Request) -> RequestTuple {
         self.prev_req_id += 1;
@@ -226,7 +228,7 @@ impl Session {
     pub async fn daemon_info(&mut self) -> Result<String> {
         let val = request!(self, "daemon.info");
         expect!(
-            val = [Value::String(version)], "a version number string",
+            val.as_slice(), [Value::String(version)], "a version number string",
             Ok(version.to_string())
         )
     }
@@ -234,26 +236,24 @@ impl Session {
     pub async fn login(&mut self, username: &str, password: &str) -> Result<i64> {
         let val = request!(self, "daemon.login", [username, password], {"client_version" => "2.0.4.dev23"});
         expect!(
-            val = [Value::Number(num)], "an i64 auth level",
+            val.as_slice(), [Value::Number(num)], "an i64 auth level",
             num.as_i64().ok_or(Error::expected("an i64", Value::Number(num.clone())))
         )
     }
 
     // TODO: make private and add register_event_handler function that takes a channel or closure
     // (haven't decided which) and possibly an enum
-    #[allow(dead_code)]
     pub async fn set_event_interest(&mut self, events: &[&str]) -> Result<()> {
         let val = request!(self, "daemon.set_event_interest", [events]);
         expect!(
-            val = [Value::Bool(true)], "true",
+            val.as_slice(), [Value::Bool(true)], "true",
             Ok(())
         )
     }
 
-    #[allow(dead_code)]
     pub async fn shutdown(mut self) -> Result<()> {
         let val = request!(self, "daemon.shutdown");
-        expect!(val = [], "an empty list", Ok(()))?;
+        expect!(val.as_slice(), [Value::Null], "null", Ok(()))?;
         self.close().await
     }
 
