@@ -25,11 +25,15 @@ async fn main() {
     println!("Auth level: {}", auth_level);
 
     #[derive(Deserialize, Debug)]
-    struct Row { name: String }
+    struct Foo { name: String }
+    #[derive(Deserialize, Debug)]
+    struct Bar { total_uploaded: u64 }
     let filter = filter! { "name" => "archlinux-2020.05.01-x86_64.iso" };
-    let statuses: HashMap<String, Row> = session.get_torrents_status(Some(filter), &["name"]).await.unwrap();
-    for status in statuses {
-        println!("{:?}", status);
+    let statuses: HashMap<String, Foo> = session.get_torrents_status(Some(filter), &["name"]).await.unwrap();
+    for (id, status) in statuses {
+        println!("{:?}", status.name);
+        let amount: Bar = session.get_torrent_status(&id, &["total_uploaded"]).await.unwrap();
+        println!("{}: {}", id, amount.total_uploaded);
     }
 
     session.close().await.unwrap();

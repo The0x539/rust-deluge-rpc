@@ -301,9 +301,15 @@ impl Session {
         expect_seq!(val, Value::String(s), "a string", s)
     }
 
-    pub async fn get_torrent_status(&mut self, torrent_id: &str, keys: &[&str]) -> Result<HashMap<String, Value>> {
+    pub async fn get_torrent_status<T>(
+        &mut self,
+        torrent_id: &str,
+        keys: &[&str]
+    ) -> Result<T>
+        where T: for<'de> Deserialize<'de>
+    {
         let val = request!(self, "core.get_torrent_status", [torrent_id, keys]);
-        expect_val!(val, Value::Object(m), "a torrent's status", m.into_iter().collect())
+        expect_val!(val, m @ Value::Object(_), "a torrent's status", serde_json::from_value(m).unwrap())
     }
 
     pub async fn get_torrents_status<T, U>(
@@ -317,7 +323,6 @@ impl Session {
         let val = request!(self, "core.get_torrents_status", [filter_dict, keys]);
         let ret = expect_val!(val, Value::Object(m), "a map of torrents' statuses", m)?
             .into_iter()
-            // TODO: serde_json is probably not the best way to transcode
             .map(|(id, status)| (id, serde_json::from_value(status).unwrap()))
             .collect();
         Ok(ret)
