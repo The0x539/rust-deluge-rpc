@@ -1,6 +1,6 @@
 mod rencode;
 #[macro_use] mod rpc;
-mod session;
+#[macro_use] mod session;
 use session::Session;
 
 use std::collections::HashMap;
@@ -11,10 +11,6 @@ fn read_file(path: &'static str) -> String {
     std::fs::read_to_string(path).unwrap()
 }
 
-#[derive(Deserialize, Debug)]
-struct Row {
-    name: String,
-}
 
 #[tokio::main()]
 async fn main() {
@@ -28,7 +24,10 @@ async fn main() {
     let auth_level = session.login(&user, &pass).await.unwrap();
     println!("Auth level: {}", auth_level);
 
-    let statuses: HashMap<String, Row> = session.get_torrents_status(None, &["name"]).await.unwrap();
+    #[derive(Deserialize, Debug)]
+    struct Row { name: String }
+    let filter = filter! { "name" => "archlinux-2020.05.01-x86_64.iso" };
+    let statuses: HashMap<String, Row> = session.get_torrents_status(Some(filter), &["name"]).await.unwrap();
     for status in statuses {
         println!("{:?}", status);
     }

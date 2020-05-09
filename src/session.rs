@@ -1,4 +1,4 @@
-use serde_json::{Value, Map};
+use serde_json::Value;
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -196,6 +196,19 @@ macro_rules! expect_seq {
     }
 }
 
+macro_rules! filter {
+    ($($key:expr => $val:expr),*$(,)?) => {
+        {
+            use maplit::hashmap;
+            maplit::convert_args!(
+                keys=String::from,
+                values=serde_json::Value::from,
+                hashmap!($($key => $val),*)
+            )
+        }
+    }
+}
+
 #[allow(dead_code)]
 impl Session {
     fn prepare_request(&mut self, request: rpc::Request) -> RequestTuple {
@@ -295,7 +308,7 @@ impl Session {
 
     pub async fn get_torrents_status<T, U>(
         &mut self,
-        filter_dict: Option<Map<String, Value>>,
+        filter_dict: Option<HashMap<String, Value>>,
         keys: &[&str],
     ) -> Result<U>
         where T: for<'de> Deserialize<'de>,
