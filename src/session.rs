@@ -2,15 +2,13 @@ use serde_json::Value;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-use crate::rencode;
+use crate::encoding::{self, rencode};
 use crate::rpc;
 use crate::error::{Error, Result};
 
 use tokio_rustls::{TlsConnector, webpki, client::TlsStream};
 use tokio::net::TcpStream;
 
-use libflate::zlib;
-use std::io::{Read, Write};
 use std::sync::Arc;
 use std::iter::FromIterator;
 
@@ -22,19 +20,6 @@ type ReadStream = ReadHalf<TlsStream<TcpStream>>;
 type WriteStream = WriteHalf<TlsStream<TcpStream>>;
 type RequestTuple = (i64, &'static str, Vec<Value>, HashMap<String, Value>);
 type RpcSender = oneshot::Sender<rpc::Result<Vec<Value>>>;
-
-fn compress(input: &[u8]) -> Vec<u8> {
-    let mut encoder = zlib::Encoder::new(Vec::new()).unwrap();
-    encoder.write_all(input).unwrap();
-    encoder.finish().into_result().unwrap()
-}
-
-fn decompress(input: &[u8]) -> Vec<u8> {
-    let mut decoder = zlib::Decoder::new(input).unwrap();
-    let mut buf = Vec::new();
-    decoder.read_to_end(&mut buf).unwrap();
-    buf
-}
 
 pub struct Session {
     stream: WriteStream,
@@ -68,7 +53,7 @@ impl MessageReceiver {
         let len = self.stream.read_u32().await?;
         let mut buf = vec![0; len as usize];
         self.stream.read_exact(&mut buf).await?;
-        buf = decompress(&buf);
+        buf = encoding::decompress(&buf);
         let val: Value = rencode::from_bytes(&buf).unwrap();
         let data = val.as_array().ok_or(Error::expected("a list", val.clone()))?;
         rpc::Inbound::from(data).map_err(|_| Error::expected("a valid RPC message", data.as_slice()))
@@ -220,7 +205,7 @@ impl Session {
     }
 
     async fn send(&mut self, req: RequestTuple) -> Result<()> {
-        let body = compress(&rencode::to_bytes(&[req]).unwrap());
+        let body = encoding::compress(&rencode::to_bytes(&[req]).unwrap());
         let mut msg = Vec::with_capacity(1 + 4 + body.len());
         byteorder::WriteBytesExt::write_u8(&mut msg, 1).unwrap();
         byteorder::WriteBytesExt::write_u32::<byteorder::BE>(&mut msg, body.len() as u32).unwrap();

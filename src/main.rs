@@ -1,4 +1,4 @@
-mod rencode;
+mod encoding;
 mod rpc;
 #[macro_use] mod session;
 mod error;
