@@ -1,7 +1,6 @@
 mod rencode;
-mod rpc;
+#[macro_use] mod rpc;
 mod session;
-
 use session::Session;
 
 fn read_file(path: &'static str) -> String {
@@ -12,13 +11,13 @@ fn read_file(path: &'static str) -> String {
 async fn main() {
     let mut session = Session::new(read_file("./experiment/endpoint")).await.unwrap();
 
-    // TODO: move auth into Session::new
+    let daemon_version = session.daemon_info().await.unwrap();
+    println!("Daemon version: {}", daemon_version);
+
     let user = read_file("./experiment/username");
     let pass = read_file("./experiment/password");
-    let req = rpc_request!("daemon.login", [user, pass]);
-
-    let val = session.request(req).await.unwrap();
-    println!("{:?}", val);
+    let auth_level = session.login(&user, &pass).await.unwrap().unwrap();
+    println!("Auth level: {}", auth_level);
 
     session.close().await.unwrap();
 }

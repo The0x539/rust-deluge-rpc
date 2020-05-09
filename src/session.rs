@@ -144,7 +144,7 @@ impl Session {
         self.stream.write_all(&msg).await
     }
 
-    pub async fn request(&mut self, req: rpc::Request) -> io::Result<rpc::Result<Vec<Value>>> {
+    async fn request(&mut self, req: rpc::Request) -> io::Result<rpc::Result<Vec<Value>>> {
         let request = self.prepare_request(req);
         let id = request.0;
 
@@ -175,6 +175,27 @@ impl Session {
         MessageReceiver::spawn(reader, request_recv);
 
         Ok(Self { stream: writer, prev_req_id: 0, listeners: request_send })
+    }
+
+    pub async fn daemon_info(&mut self) -> io::Result<String> {
+        self.request(rpc_request!("daemon.info"))
+            .await?
+            .unwrap() // Deluge's implementation of daemon.info never errors.
+            [0]
+            .as_str()
+            .ok_or(invalid_data_err("expected a string from daemon.info"))
+            .map(String::from)
+    }
+
+    pub async fn login(&mut self, username: &str, password: &str) -> io::Result<rpc::Result<i64>> {
+        let request = rpc_request!("daemon.login", [username, password], {"client_version" => "2.0.4.dev23"});
+        match self.request(request).await? {
+            Ok(v) => match v[0].as_i64() {
+                Some(v) => Ok(Ok(v)),
+                None => Err(invalid_data_err("expected an int from daemon.login")),
+            },
+            Err(e) => Ok(Err(e)),
+        }
     }
 
     pub async fn close(mut self) -> io::Result<()> {

@@ -10,7 +10,6 @@ pub struct Request {
     pub kwargs: HashMap<String, Value>,
 }
 
-#[macro_export]
 macro_rules! rpc_request {
     (
         $method:expr,
