@@ -2,6 +2,7 @@ mod encoding;
 mod rpc;
 #[macro_use] mod session;
 mod error;
+mod receiver;
 use session::Session;
 
 use std::collections::HashMap;
