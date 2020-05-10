@@ -6,6 +6,7 @@ use crate::encoding;
 use crate::rpc;
 use crate::receiver::MessageReceiver;
 use crate::error::{Error, Result};
+use crate::wtf;
 
 use tokio_rustls::{TlsConnector, webpki, client::TlsStream};
 use tokio::net::TcpStream;
@@ -25,17 +26,6 @@ pub struct Session {
     stream: WriteStream,
     prev_req_id: i64,
     listeners: mpsc::Sender<(i64, RpcSender)>,
-}
-
-// This is just a little bit ridiculous.
-// For my use case, I at least have the cert *on my local filesystem*.
-// I'd also be willing to copy it wherever.
-struct NoCertificateVerification;
-
-impl rustls::ServerCertVerifier for NoCertificateVerification {
-    fn verify_server_cert(&self, _: &rustls::RootCertStore, _: &[rustls::Certificate], _: webpki::DNSNameRef<'_>, _: &[u8]) -> std::result::Result<rustls::ServerCertVerified, rustls::TLSError> {
-        Ok(rustls::ServerCertVerified::assertion())
-    }
 }
 
 macro_rules! build_request {
@@ -163,7 +153,7 @@ impl Session {
         //let server_pem_file = File::open("/home/the0x539/misc_software/dtui/experiment/certs/server.pem").unwrap();
         //tls_config.root_store.add_pem_file(&mut BufReader::new(pem_file)).unwrap();
         //tls_config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
-        tls_config.dangerous().set_certificate_verifier(Arc::new(NoCertificateVerification));
+        tls_config.dangerous().set_certificate_verifier(Arc::new(wtf::NoCertificateVerification));
         let tls_connector = TlsConnector::from(Arc::new(tls_config));
 
         let tcp_stream = TcpStream::connect(endpoint).await?;
