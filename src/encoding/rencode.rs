@@ -1,6 +1,6 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use byteorder::{ReadBytesExt, WriteBytesExt, BE};
-use serde::{ser, Serialize, de, Deserialize};
+use serde::{ser, Serialize, de, Deserialize, de::DeserializeOwned};
 
 mod types {
     pub const LIST: u8 = 59;
@@ -79,6 +79,7 @@ pub fn to_writer(writer: &mut impl Write, value: &impl Serialize) -> Result<()> 
     serializer.0.flush().map_err(|e| ser::Error::custom(e))
 }
 
+#[allow(dead_code)]
 pub fn to_bytes(value: &impl Serialize) -> Result<Vec<u8>> {
     let mut buf = Vec::new();
     to_writer(&mut buf, value)?;
@@ -283,6 +284,11 @@ pub fn from_bytes<'a, T: Deserialize<'a>>(data: &'a [u8]) -> Result<T> {
     } else {
         Err(de::Error::custom("too many bytes"))
     }
+}
+
+pub fn from_reader<T: DeserializeOwned>(data: impl Read) -> Result<T> {
+    // TODO: not this
+    from_bytes(data.bytes().collect::<std::io::Result<Vec<u8>>>().unwrap().as_slice())
 }
 
 impl<'de> RencodeDeserializer<'de> {

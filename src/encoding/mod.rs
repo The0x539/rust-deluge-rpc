@@ -1,19 +1,15 @@
 use libflate::zlib;
-use std::io::{Read, Write};
+use serde::{Serialize, de::DeserializeOwned};
 
-// TODO: expose encode and decode, rather than compress and decompress
+mod rencode;
 
-pub(crate) mod rencode;
-
-pub fn compress(input: &[u8]) -> Vec<u8> {
-    let mut encoder = zlib::Encoder::new(Vec::new()).unwrap();
-    encoder.write_all(input).unwrap();
-    encoder.finish().into_result().unwrap()
+pub fn decode<T: DeserializeOwned>(input: &[u8]) -> rencode::Result<T> {
+    rencode::from_reader(zlib::Decoder::new(input).unwrap())
 }
 
-pub fn decompress(input: &[u8]) -> Vec<u8> {
-    let mut decoder = zlib::Decoder::new(input).unwrap();
-    let mut buf = Vec::new();
-    decoder.read_to_end(&mut buf).unwrap();
-    buf
+pub fn encode<T: Serialize>(input: T) -> rencode::Result<Vec<u8>> {
+    let mut encoder = zlib::Encoder::new(Vec::new()).unwrap();
+    rencode::to_writer(&mut encoder, &input)?;
+    let buf = encoder.finish().into_result().unwrap();
+    Ok(buf)
 }

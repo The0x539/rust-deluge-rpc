@@ -2,7 +2,7 @@ use serde_json::Value;
 use serde::Deserialize;
 use std::collections::HashMap;
 
-use crate::encoding::{self, rencode};
+use crate::encoding;
 use crate::rpc;
 use crate::error::{Error, Result};
 
@@ -53,8 +53,7 @@ impl MessageReceiver {
         let len = self.stream.read_u32().await?;
         let mut buf = vec![0; len as usize];
         self.stream.read_exact(&mut buf).await?;
-        buf = encoding::decompress(&buf);
-        let val: Value = rencode::from_bytes(&buf).unwrap();
+        let val: Value = encoding::decode(&buf).unwrap();
         let data = val.as_array().ok_or(Error::expected("a list", val.clone()))?;
         rpc::Inbound::from(data).map_err(|_| Error::expected("a valid RPC message", data.as_slice()))
     }
@@ -205,7 +204,8 @@ impl Session {
     }
 
     async fn send(&mut self, req: RequestTuple) -> Result<()> {
-        let body = encoding::compress(&rencode::to_bytes(&[req]).unwrap());
+        //let body = encoding::compress(&rencode::to_bytes(&[req]).unwrap());
+        let body = encoding::encode(&req).unwrap();
         let mut msg = Vec::with_capacity(1 + 4 + body.len());
         byteorder::WriteBytesExt::write_u8(&mut msg, 1).unwrap();
         byteorder::WriteBytesExt::write_u32::<byteorder::BE>(&mut msg, body.len() as u32).unwrap();
