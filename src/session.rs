@@ -204,8 +204,7 @@ impl Session {
     }
 
     async fn send(&mut self, req: RequestTuple) -> Result<()> {
-        //let body = encoding::compress(&rencode::to_bytes(&[req]).unwrap());
-        let body = encoding::encode(&req).unwrap();
+        let body = encoding::encode(&[req]).unwrap();
         let mut msg = Vec::with_capacity(1 + 4 + body.len());
         byteorder::WriteBytesExt::write_u8(&mut msg, 1).unwrap();
         byteorder::WriteBytesExt::write_u32::<byteorder::BE>(&mut msg, body.len() as u32).unwrap();
