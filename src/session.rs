@@ -85,6 +85,16 @@ macro_rules! expect {
     }
 }
 
+macro_rules! expect_nothing {
+    ($val:expr) => {
+        if $val.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::expected("nothing", $val))
+        }
+    }
+}
+
 macro_rules! expect_val {
     ($val:expr, ?$pat:pat, $expected:expr, $result:expr) => {
         match $val.len() {
@@ -235,13 +245,32 @@ impl Session {
         Ok(ret)
     }
 
-    pub async fn add_torrent_file(
-        &mut self,
-        filename: &str,
-        filedump: &str,
-        options: Option<Dict>,
-    ) -> Result<Option<InfoHash>> {
+    pub async fn add_torrent_file(&mut self, filename: &str, filedump: &str, options: Option<Dict>) -> Result<Option<InfoHash>> {
         let val = make_request!(self, "core.add_torrent_file", [filename, filedump, options]);
+        expect_val!(val, ?Value::String(s), "an infohash or None", s)
+    }
+
+    pub async fn add_torrent_file_async(&mut self, _filename: &str, _filedump: &str, _options: Option<Dict>, _save_state: bool) -> Result<Option<InfoHash>> {
+        unimplemented!("When communicating over RPC, this function seems to be identical to add_torrent_file.
+                        Nothing in the DelugeRPC API actually sends a Deferred object over RPC.
+                        Besides, that'd be impossible; rencode can't serialize them.");
+    }
+
+    pub async fn add_torrent_files(&mut self, torrent_files: &[(&str, &str, Option<Dict>)]) -> Result<()> {
+        let val = make_request!(self, "core.add_torrent_files", [torrent_files]);
+        expect_nothing!(val)
+    }
+
+    // TODO: clientside validation, likely via type system.
+    // honestly, that applies to a lot of this. `options` could be a struct.
+    pub async fn add_torrent_magnet(&mut self, uri: &str, options: Option<Dict>) -> Result<InfoHash> {
+        let val = make_request!(self, "core.add_torrent_magnet", [uri, options]);
+        expect_val!(val, Value::String(s), "an infohash", s)
+    }
+
+    // TODO: proper HTTP headers data structure
+    pub async fn add_torrent_url(&mut self, url: &str, options: Option<Dict>, headers: Option<Dict>) -> Result<Option<InfoHash>> {
+        let val = make_request!(self, "core.add_torrent_url", [url, options, headers]);
         expect_val!(val, ?Value::String(s), "an infohash or None", s)
     }
 
