@@ -35,5 +35,13 @@ async fn main() {
     let auth_level = session.login(&user, &pass).await.unwrap();
     println!("Auth level: {}", auth_level);
 
+    let filedump = std::fs::read("experiment/test.torrent").unwrap();
+    let res = session.add_torrent_file("test.torrent", &base64::encode(filedump), None).await;
+    match res {
+        Ok(r) => println!("{:?}", r),
+        Err(error::Error::Rpc(e)) => println!("{}", e),
+        x => println!("{:?}", x),
+    };
+
     session.close().await.unwrap();
 }

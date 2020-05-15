@@ -130,11 +130,10 @@ impl Session {
 
     async fn send(&mut self, req: RequestTuple) -> Result<()> {
         let body = encoding::encode(&[req]).unwrap();
-        let mut msg = Vec::with_capacity(1 + 4 + body.len());
-        byteorder::WriteBytesExt::write_u8(&mut msg, 1).unwrap();
-        byteorder::WriteBytesExt::write_u32::<byteorder::BE>(&mut msg, body.len() as u32).unwrap();
-        std::io::Write::write_all(&mut msg, &body).unwrap();
-        self.stream.write_all(&msg).await?;
+        self.stream.write_u8(1).await?;
+        self.stream.write_u32(body.len() as u32).await?;
+        self.stream.write_all(&body).await?;
+        self.stream.flush().await?;
         Ok(())
     }
 
@@ -149,8 +148,12 @@ impl Session {
 
         self.send(request).await?;
 
-        let val = receiver.await.map_err(|_| Error::ChannelClosed("rpc response"))??;
-        Ok(val)
+        // This is an RPC result inside a oneshot result.
+        match receiver.await {
+            Ok(Ok(r)) => Ok(r), // Success
+            Ok(Err(e)) => Err(Error::Rpc(e)), // RPC error
+            Err(_) => Err(Error::ChannelClosed("rpc response")), // Channel error
+        }
     }
 
     pub async fn new(endpoint: impl tokio::net::ToSocketAddrs) -> Result<Self> {
@@ -162,7 +165,6 @@ impl Session {
         let tls_connector = TlsConnector::from(Arc::new(tls_config));
 
         let tcp_stream = TcpStream::connect(endpoint).await?;
-        tcp_stream.set_nodelay(true)?;
         let stupid_dns_ref = webpki::DNSNameRef::try_from_ascii_str("foo").unwrap();
         let stream = tls_connector.connect(stupid_dns_ref, tcp_stream).await?;
 
@@ -231,6 +233,16 @@ impl Session {
             .map(|(hash, status)| (hash, serde_json::from_value(status).unwrap()))
             .collect();
         Ok(ret)
+    }
+
+    pub async fn add_torrent_file(
+        &mut self,
+        filename: &str,
+        filedump: &str,
+        options: Option<Dict>,
+    ) -> Result<Option<InfoHash>> {
+        let val = make_request!(self, "core.add_torrent_file", [filename, filedump, options]);
+        expect_val!(val, ?Value::String(s), "an infohash or None", s)
     }
 
     pub async fn close(mut self) -> Result<()> {
