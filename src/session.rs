@@ -24,6 +24,9 @@ type WriteStream = io::WriteHalf<TlsStream<TcpStream>>;
 type RequestTuple = (i64, &'static str, List, Dict);
 type RpcSender = oneshot::Sender<rpc::Result<List>>;
 
+// TODO: Be more rigorous about what an infohash is
+pub type InfoHash = String;
+
 pub struct Session {
     stream: WriteStream,
     prev_req_id: i64,
@@ -205,9 +208,9 @@ impl Session {
         expect_seq!(val, Value::String(s), "a string", s)
     }
 
-    pub async fn get_session_state<T: FromIterator<String>>(&mut self) -> Result<T> {
+    pub async fn get_session_state<T: FromIterator<InfoHash>>(&mut self) -> Result<T> {
         let val = make_request!(self, "core.get_session_state");
-        expect_seq!(val, Value::String(s), "a string", s)
+        expect_seq!(val, Value::String(s), "an infohash", s)
     }
 
     pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &str) -> Result<T> {
@@ -220,12 +223,12 @@ impl Session {
         filter_dict: Option<Dict>,
     ) -> Result<U>
         where T: Query,
-              U: FromIterator<(String, T)>
+              U: FromIterator<(InfoHash, T)>
     {
         let val = make_request!(self, "core.get_torrents_status", [filter_dict, T::keys()]);
         let ret = expect_val!(val, Value::Object(m), "a map of torrents' statuses", m)?
             .into_iter()
-            .map(|(id, status)| (id, serde_json::from_value(status).unwrap()))
+            .map(|(hash, status)| (hash, serde_json::from_value(status).unwrap()))
             .collect();
         Ok(ret)
     }
