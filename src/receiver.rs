@@ -35,14 +35,23 @@ impl MessageReceiver {
     }
 
     async fn recv(&mut self) -> Result<rpc::Inbound> {
+        // Get protocol version
         let ver = self.stream.read_u8().await?;
         // In theory, this could kill the session rather than the program, but eh
         assert_eq!(ver, 1, "Unknown DelugeRPC protocol version: {}", ver);
+
+        // Get message length
         let len = self.stream.read_u32().await?;
+
+        // Get message body
         let mut buf = vec![0; len as usize];
         self.stream.read_exact(&mut buf).await?;
+
+        // Decode message body
         let val: Value = encoding::decode(&buf).unwrap();
         let data = val.as_array().ok_or(Error::expected("a list", val.clone()))?;
+
+        // Interpret unstructured data according to RPC API
         rpc::Inbound::from(data).map_err(|_| Error::expected("a valid RPC message", data.as_slice()))
     }
 
