@@ -14,16 +14,33 @@ const RPC_RESPONSE: i64 = 1;
 const RPC_ERROR: i64 = 2;
 const RPC_EVENT: i64 = 3;
 
-// TODO: Determine what we can expect from the server
-// Make this data structure less free-form accordingly
 #[derive(Debug)]
-pub struct Error(pub Vec<Value>);
+pub struct Error {
+    exception: String,
+    args: Vec<Value>,
+    kwargs: HashMap<String, Value>,
+    traceback: String,
+}
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // Won't panic because we know we can serialize a Vec<Value>
-        let s = serde_json::to_string_pretty(&self.0).unwrap();
-        f.write_str(&s)
+        /*
+        use serde_json::to_string_pretty;
+        let args = self.args
+            .iter()
+            .map(|v|to_string_pretty(v).unwrap());
+        let kwargs = self.kwargs
+            .iter()
+            .map(|(k, v)| format!("{}={}", to_string_pretty(k).unwrap(), to_string_pretty(v).unwrap()));
+        write!(
+            f,
+            "{}({})\n{}",
+            self.exception,
+            args.chain(kwargs).collect::<Vec<String>>().join(", "),
+            self.traceback,
+        )
+        */
+        f.write_str(&self.traceback)
     }
 }
 
@@ -46,7 +63,14 @@ impl Inbound {
                 request_id: from_value(data[1].clone())?,
                 result: match msg_type {
                     RPC_RESPONSE => Ok(from_value(data[2].clone()).unwrap_or(vec![data[2].clone()])),
-                    RPC_ERROR => Err(Error(data[2..].to_vec())),
+                    RPC_ERROR => {
+                        Err(Error {
+                            exception: from_value(data[2].clone())?,
+                            args: from_value(data[3].clone())?,
+                            kwargs: from_value(data[4].clone())?,
+                            traceback: from_value(data[5].clone())?,
+                        })
+                    },
                     _ => unreachable!(),
                 },
             },
