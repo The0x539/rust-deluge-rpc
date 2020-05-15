@@ -1,6 +1,5 @@
 use serde_json::Value;
 use serde::Deserialize;
-use std::collections::HashMap;
 
 use crate::encoding;
 use crate::rpc;
@@ -16,11 +15,14 @@ use std::iter::FromIterator;
 
 use tokio::prelude::*;
 use tokio::sync::{oneshot, mpsc};
-use tokio::io::WriteHalf;
 
-type WriteStream = WriteHalf<TlsStream<TcpStream>>;
-type RequestTuple = (i64, &'static str, Vec<Value>, HashMap<String, Value>);
-type RpcSender = oneshot::Sender<rpc::Result<Vec<Value>>>;
+type List = Vec<Value>;
+// I don't expect to come across any non-string keys.
+type Dict = std::collections::HashMap<String, Value>;
+
+type WriteStream = io::WriteHalf<TlsStream<TcpStream>>;
+type RequestTuple = (i64, &'static str, List, Dict);
+type RpcSender = oneshot::Sender<rpc::Result<List>>;
 
 pub struct Session {
     stream: WriteStream,
@@ -28,34 +30,32 @@ pub struct Session {
     listeners: mpsc::Sender<(i64, RpcSender)>,
 }
 
-macro_rules! build_request {
-    (
-        $method:expr,
-        [$($arg:expr),*],
-        {$($kw:expr => $kwarg:expr),*}
-        $(,)?
-    ) => {
+#[macro_export]
+macro_rules! dict {
+    ($($key:expr => $val:expr),*$(,)?) => {
         {
             use maplit::hashmap;
-            $crate::rpc::Request {
-                method: $method,
-                args: vec![$(serde_json::json!($arg)),*],
-                kwargs: maplit::convert_args!(
-                    keys=String::from,
-                    values=serde_json::Value::from,
-                    hashmap!($($kw => $kwarg),*)
-                ),
-            }
+            maplit::convert_args!(
+                keys=String::from,
+                values=serde_json::Value::from,
+                hashmap!($($key => $val),*)
+            )
         }
-    };
-    ($method:expr, [$($arg:expr),*] $(,)?) => {
-        build_request!($method, [$($arg),*], {})
-    };
-    ($method:expr, {$($kw:expr => $kwarg:expr),+} $(,)?) => {
-        build_request!($method, [], {$($kw => $kwarg),*})
-    };
-    ($method:expr $(,)?) => {
-        build_request!($method, [], {})
+    }
+}
+
+macro_rules! build_request {
+    (
+        $method:expr
+        $(, [$($arg:expr),*])?
+        $(, {$($kw:expr => $kwarg:expr),*})?
+        $(,)?
+    ) => {
+        $crate::rpc::Request {
+            method: $method,
+            args: vec![$($(serde_json::json!($arg)),*)?],
+            kwargs: dict!{$($($kw => $kwarg),*)?}
+        }
     };
 }
 
@@ -66,6 +66,14 @@ macro_rules! make_request {
 }
 
 macro_rules! expect {
+    ($val:expr, ?$pat:pat, $expected:expr, $result:expr) => {
+        match $val {
+            $pat => Ok(Some($result)),
+            Value::Null => Ok(None),
+            x => Err(Error::expected($expected, x)),
+        }
+    };
+
     ($val:expr, $pat:pat, $expected:expr, $result:expr) => {
         match $val {
             $pat => Ok($result),
@@ -75,6 +83,13 @@ macro_rules! expect {
 }
 
 macro_rules! expect_val {
+    ($val:expr, ?$pat:pat, $expected:expr, $result:expr) => {
+        match $val.len() {
+            1 => expect!($val.into_iter().next().unwrap(), ?$pat, $expected, $result),
+            _ => Err(Error::expected(std::concat!("a list containing only ", $expected), $val)),
+        }
+    };
+
     ($val:expr, $pat:pat, $expected:expr, $result:expr) => {
         match $val.len() {
             1 => expect!($val.into_iter().next().unwrap(), $pat, $expected, $result),
@@ -95,19 +110,6 @@ macro_rules! expect_seq {
                 }
             })
             .collect()
-    }
-}
-
-macro_rules! filter {
-    ($($key:expr => $val:expr),*$(,)?) => {
-        {
-            use maplit::hashmap;
-            maplit::convert_args!(
-                keys=String::from,
-                values=serde_json::Value::from,
-                hashmap!($($key => $val),*)
-            )
-        }
     }
 }
 
@@ -133,7 +135,7 @@ impl Session {
         Ok(())
     }
 
-    async fn request(&mut self, req: rpc::Request) -> Result<Vec<Value>> {
+    async fn request(&mut self, req: rpc::Request) -> Result<List> {
         let request = self.prepare_request(req);
         let id = request.0;
 
@@ -215,7 +217,7 @@ impl Session {
 
     pub async fn get_torrents_status<T, U>(
         &mut self,
-        filter_dict: Option<HashMap<String, Value>>,
+        filter_dict: Option<Dict>,
     ) -> Result<U>
         where T: Query,
               U: FromIterator<(String, T)>
