@@ -6,8 +6,6 @@ mod receiver;
 mod wtf;
 use session::Session;
 
-use std::collections::HashMap;
-
 use serde::Deserialize;
 
 fn read_file(path: &'static str) -> String {
@@ -36,14 +34,6 @@ async fn main() {
     let pass = read_file("./experiment/password");
     let auth_level = session.login(&user, &pass).await.unwrap();
     println!("Auth level: {}", auth_level);
-
-    let filter = filter! { "name" => "archlinux-2020.05.01-x86_64.iso" };
-    let statuses: HashMap<String, Foo> = session.get_torrents_status(Some(filter)).await.unwrap();
-    for (id, status) in statuses {
-        println!("{:?}", status.name);
-        let amount: Bar = session.get_torrent_status(&id).await.unwrap();
-        println!("{}: {}", id, amount.total_uploaded);
-    }
 
     session.close().await.unwrap();
 }
