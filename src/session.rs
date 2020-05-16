@@ -1,3 +1,5 @@
+use deluge_macro::*;
+
 use serde_json::Value;
 use serde::{Serialize, Deserialize, Serializer};
 
@@ -31,6 +33,7 @@ pub struct Session {
     stream: WriteStream,
     prev_req_id: i64,
     listeners: mpsc::Sender<(i64, RpcSender)>,
+    auth_level: u8,
 }
 
 #[allow(dead_code)]
@@ -241,7 +244,7 @@ impl Session {
 
         MessageReceiver::spawn(reader, request_recv);
 
-        Ok(Self { stream: writer, prev_req_id: 0, listeners: request_send })
+        Ok(Self { stream: writer, prev_req_id: 0, listeners: request_send, auth_level: 0 })
     }
 
     pub async fn daemon_info(&mut self) -> Result<String> {
@@ -251,13 +254,14 @@ impl Session {
 
     pub async fn login(&mut self, username: &str, password: &str) -> Result<i64> {
         let val = make_request!(self, "daemon.login", [username, password], {"client_version" => "2.0.4.dev23"});
-        expect_val!(
+        self.auth_level = expect_val!(
             val, Value::Number(num), "an i64 auth level",
             match num.as_i64() {
                 Some(n) => n,
                 None => return Err(Error::expected("an i64", Value::Number(num.clone()))),
             }
-        )
+        );
+        Ok(self.auth_level)
     }
 
     // TODO: make private and add register_event_handler function that takes a channel or closure
@@ -331,6 +335,9 @@ impl Session {
         let val = make_request!(self, "core.add_torrent_url", [url, options, headers]);
         expect_val!(val, ?Value::String(s), "an infohash or None", s)
     }
+
+    #[rpc_method(class="core", auth_level=5)]
+    pub async fn get_config(&mut self) -> Dict;
 
     pub async fn close(mut self) -> Result<()> {
         self.stream.shutdown().await?;

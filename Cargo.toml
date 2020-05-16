@@ -16,6 +16,7 @@ tokio-rustls = "0.13.0"
 rustls = { version = "0.17.0", features = ["dangerous_configuration"] }
 libflate = "0.1.27"
 base64 = "0.12.1"
+deluge-macro = { path = "./experiment/deluge-macro" }
 
 [patch.crates-io]
 webpki = { path = "./experiment/webpki" }
