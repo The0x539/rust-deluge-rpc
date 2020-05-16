@@ -5,6 +5,7 @@ mod error;
 mod receiver;
 mod wtf;
 use session::Session;
+use deluge_macro::*;
 
 use serde::Deserialize;
 
@@ -12,11 +13,8 @@ fn read_file(path: &'static str) -> String {
     std::fs::read_to_string(path).unwrap()
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Query)]
 struct Foo { name: String, num_files: u32 }
-impl session::Query for Foo {
-    fn keys() -> &'static [&'static str] { &["name", "num_files"] }
-}
 
 #[tokio::main()]
 async fn main() {
