@@ -247,10 +247,8 @@ impl Session {
         Ok(Self { stream: writer, prev_req_id: 0, listeners: request_send, auth_level: 0 })
     }
 
-    pub async fn daemon_info(&mut self) -> Result<String> {
-        let val = make_request!(self, "daemon.info");
-        expect_val!(val, Value::String(version), "a version number string", version)
-    }
+    #[rpc_method(class="daemon", method="info", auth_level = 0)]
+    pub async fn daemon_info(&mut self) -> String;
 
     pub async fn login(&mut self, username: &str, password: &str) -> Result<i64> {
         let val = make_request!(self, "daemon.login", [username, password], {"client_version" => "2.0.4.dev23"});
