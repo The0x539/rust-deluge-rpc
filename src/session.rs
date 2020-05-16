@@ -33,7 +33,7 @@ pub struct Session {
     stream: WriteStream,
     prev_req_id: i64,
     listeners: mpsc::Sender<(i64, RpcSender)>,
-    auth_level: u8,
+    auth_level: i64,
 }
 
 #[allow(dead_code)]
@@ -260,7 +260,7 @@ impl Session {
                 Some(n) => n,
                 None => return Err(Error::expected("an i64", Value::Number(num.clone()))),
             }
-        );
+        )?;
         Ok(self.auth_level)
     }
 
