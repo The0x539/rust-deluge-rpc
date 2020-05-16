@@ -157,19 +157,21 @@ macro_rules! expect_nothing {
 }
 
 macro_rules! expect_val {
-    ($val:expr, ?$pat:pat, $expected:expr, $result:expr) => {
-        match $val.len() {
-            1 => expect!($val.into_iter().next().unwrap(), ?$pat, $expected, $result),
-            _ => Err(Error::expected(std::concat!("a list containing only ", $expected), $val)),
-        }
-    };
-
     ($val:expr, $pat:pat, $expected:expr, $result:expr) => {
         match $val.len() {
             1 => expect!($val.into_iter().next().unwrap(), $pat, $expected, $result),
             _ => Err(Error::expected(std::concat!("a list containing only ", $expected), $val)),
         }
     }
+}
+
+macro_rules! expect_option {
+    ($val:expr, $pat:pat, $expected:expr, $result:expr) => {
+        match $val.len() {
+            1 => expect!($val.into_iter().next().unwrap(), ?$pat, $expected, $result),
+            _ => Err(Error::expected(std::concat!("a list containing only ", $expected), $val)),
+        }
+    };
 }
 
 macro_rules! expect_seq {
@@ -263,19 +265,18 @@ impl Session {
         expect_val!(val, Value::Bool(true), "true", ())
     }
 
-    pub async fn shutdown(mut self) -> Result<()> {
-        let val = make_request!(self, "daemon.shutdown");
-        expect_val!(val, Value::Null, "null", ())?;
+    #[rpc_method(class="daemon", auth_level=5)]
+    pub async fn shutdown(mut self) -> () {
+        // TODO: restructure the macros so that val isn't a Result
+        val?;
         self.close().await
     }
 
     #[rpc_method(class="daemon", auth_level=5)]
     pub async fn get_method_list(&mut self) -> [String];
 
-    pub async fn get_session_state<T: FromIterator<InfoHash>>(&mut self) -> Result<T> {
-        let val = make_request!(self, "core.get_session_state");
-        expect_seq!(val, Value::String(s), "an infohash", s)
-    }
+    #[rpc_method(class="core", auth_level=5)]
+    pub async fn get_session_state(&mut self) -> [InfoHash];
 
     #[rpc_method(class="core", auth_level=5)]
     pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &str) -> T;
@@ -292,16 +293,13 @@ impl Session {
         Ok(ret)
     }
 
-    pub async fn add_torrent_file(&mut self, filename: &str, filedump: &str, options: &TorrentOptions) -> Result<Option<InfoHash>> {
-        let val = make_request!(self, "core.add_torrent_file", [filename, filedump, options]);
-        expect_val!(val, ?Value::String(s), "an infohash or None", s)
-    }
-
-    pub async fn add_torrent_file_async(&mut self, _filename: &str, _filedump: &str, _options: &TorrentOptions, _save_state: bool) -> Result<Option<InfoHash>> {
-        unimplemented!("When communicating over RPC, this function seems to be identical to add_torrent_file.
-                        Nothing in the DelugeRPC API actually sends a Deferred object over RPC.
-                        Besides, that'd be impossible; rencode can't serialize them.");
-    }
+    #[rpc_method(class="core", auth_level=5)]
+    pub async fn add_torrent_file(
+        &mut self,
+        filename: &str,
+        filedump: &str,
+        options: &TorrentOptions
+    ) -> Option<InfoHash>;
 
     pub async fn add_torrent_files(&mut self, torrent_files: &[(&str, &str, &TorrentOptions)]) -> Result<()> {
         let val = make_request!(self, "core.add_torrent_files", [torrent_files]);
@@ -318,7 +316,7 @@ impl Session {
     // TODO: proper HTTP headers data structure
     pub async fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<Dict>) -> Result<Option<InfoHash>> {
         let val = make_request!(self, "core.add_torrent_url", [url, options, headers]);
-        expect_val!(val, ?Value::String(s), "an infohash or None", s)
+        expect_option!(val, Value::String(s), "an infohash or None", s)
     }
 
     #[rpc_method(class="core", auth_level=5)]
