@@ -46,52 +46,31 @@ impl Serialize for FilePriority {
     }
 }
 
-macro_rules! option_struct {
-    (
-        $(#[$attr:meta])*
-        $vis:vis struct $name:ident {
-            $(
-                $(#[$field_attr:meta])*
-                $field_vis:vis $field_name:ident: $field_type:ty
-            ),*$(,)?
-        }
-    ) => {
-        $(#[$attr])*
-        $vis struct $name {
-            $(
-                $(#[$field_attr])*
-                $field_vis $field_name: std::option::Option<$field_type>
-            ),*
-        }
-    }
-}
-
-option_struct! {
-    #[derive(Clone, Default, Serialize)]
-    pub struct TorrentOptions {
-        pub add_paused: bool,
-        pub auto_managed: bool,
-        pub download_location: String,
-        pub file_priorities: Vec<FilePriority>,
-        pub mapped_files: std::collections::HashMap<String, String>,
-        pub max_connections: i64,
-        pub max_download_speed: f64,
-        pub max_upload_slots: i64,
-        pub max_upload_speed: f64,
-        pub move_completed: bool,
-        pub move_completed_path: String,
-        pub name: String,
-        pub owner: String,
-        pub pre_allocate_storage: bool,
-        pub prioritize_first_last_pieces: bool,
-        pub remove_at_ratio: bool,
-        pub seed_mode: bool, // Only used when adding a torrent
-        pub sequential_download: bool,
-        pub shared: bool,
-        pub stop_at_ratio: bool,
-        pub stop_ratio: f64,
-        pub super_seeding: bool,
-    }
+#[option_struct]
+#[derive(Clone, Default)]
+pub struct TorrentOptions {
+    pub add_paused: bool,
+    pub auto_managed: bool,
+    pub download_location: String,
+    pub file_priorities: Vec<FilePriority>,
+    pub mapped_files: std::collections::HashMap<String, String>,
+    pub max_connections: i64,
+    pub max_download_speed: f64,
+    pub max_upload_slots: i64,
+    pub max_upload_speed: f64,
+    pub move_completed: bool,
+    pub move_completed_path: String,
+    pub name: String,
+    pub owner: String,
+    pub pre_allocate_storage: bool,
+    pub prioritize_first_last_pieces: bool,
+    pub remove_at_ratio: bool,
+    pub seed_mode: bool, // Only used when adding a torrent
+    pub sequential_download: bool,
+    pub shared: bool,
+    pub stop_at_ratio: bool,
+    pub stop_ratio: f64,
+    pub super_seeding: bool,
 }
 
 #[macro_export]
