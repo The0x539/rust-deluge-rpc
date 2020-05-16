@@ -250,15 +250,9 @@ impl Session {
     #[rpc_method(class="daemon", method="info", auth_level = 0)]
     pub async fn daemon_info(&mut self) -> String;
 
-    pub async fn login(&mut self, username: &str, password: &str) -> Result<i64> {
-        let val = make_request!(self, "daemon.login", [username, password], {"client_version" => "2.0.4.dev23"});
-        self.auth_level = expect_val!(
-            val, Value::Number(num), "an i64 auth level",
-            match num.as_i64() {
-                Some(n) => n,
-                None => return Err(Error::expected("an i64", Value::Number(num.clone()))),
-            }
-        )?;
+    #[rpc_method(class="daemon", auth_level=0, client_version="2.0.4.dev23")]
+    pub async fn login(&mut self, username: &str, password: &str) -> i64 {
+        self.auth_level = val?;
         Ok(self.auth_level)
     }
 
