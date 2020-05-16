@@ -287,18 +287,13 @@ impl Session {
         expect_seq!(val, Value::String(s), "an infohash", s)
     }
 
-    pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &str) -> Result<T> {
-        let val = make_request!(self, "core.get_torrent_status", [torrent_id, T::keys()]);
-        expect_val!(val, m @ Value::Object(_), "a torrent's status", serde_json::from_value(m).unwrap())
-    }
+    #[rpc_method(class="core", auth_level=5)]
+    pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &str) -> T;
 
-    pub async fn get_torrents_status<T, U>(
+    pub async fn get_torrents_status<T: Query, U: FromIterator<(InfoHash, T)>>(
         &mut self,
         filter_dict: Option<Dict>,
-    ) -> Result<U>
-        where T: Query,
-              U: FromIterator<(InfoHash, T)>
-    {
+    ) -> Result<U> {
         let val = make_request!(self, "core.get_torrents_status", [filter_dict, T::keys()]);
         let ret = expect_val!(val, Value::Object(m), "a map of torrents' statuses", m)?
             .into_iter()

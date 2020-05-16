@@ -13,14 +13,9 @@ fn read_file(path: &'static str) -> String {
 }
 
 #[derive(Deserialize, Debug)]
-struct Foo { name: String }
+struct Foo { name: String, num_files: u32 }
 impl session::Query for Foo {
-    fn keys() -> &'static [&'static str] { &["name"] }
-}
-#[derive(Deserialize, Debug)]
-struct Bar { total_uploaded: u64 }
-impl session::Query for Bar {
-    fn keys() -> &'static [&'static str] { &["total_uploaded"] }
+    fn keys() -> &'static [&'static str] { &["name", "num_files"] }
 }
 
 #[tokio::main()]
@@ -35,6 +30,7 @@ async fn main() {
     let auth_level = session.login(&user, &pass).await.unwrap();
     println!("Auth level: {}", auth_level);
 
+    /*
     let filedump = std::fs::read("experiment/test.torrent").unwrap();
     let filedump2 = std::fs::read("experiment/shower.torrent").unwrap();
     let foo = session::TorrentOptions::default();
@@ -47,6 +43,13 @@ async fn main() {
         Err(error::Error::Rpc(e)) => println!("{}", e),
         x => println!("{:?}", x),
     };
+    */
+
+    for id in session.get_session_state::<Vec<_>>().await.unwrap() {
+        println!("{}", id);
+        let q = session.get_torrent_status::<Foo>(&id).await.unwrap();
+        println!("{:?}", q);
+    }
 
     session.close().await.unwrap();
 }
