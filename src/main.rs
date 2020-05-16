@@ -43,10 +43,16 @@ async fn main() {
     };
     */
 
+    /*
     for id in session.get_session_state::<Vec<_>>().await.unwrap() {
         println!("{}", id);
         let q = session.get_torrent_status::<Foo>(&id).await.unwrap();
         println!("{:?}", q);
+    }
+    */
+
+    for method in session.get_method_list::<Vec<String>>().await.unwrap() {
+        println!("{}", method);
     }
 
     session.close().await.unwrap();

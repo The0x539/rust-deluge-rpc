@@ -277,10 +277,8 @@ impl Session {
         self.close().await
     }
 
-    pub async fn get_method_list<T: FromIterator<String>>(&mut self) -> Result<T> {
-        let val = make_request!(self, "daemon.get_method_list");
-        expect_seq!(val, Value::String(s), "a string", s)
-    }
+    #[rpc_method(class="daemon", auth_level=5)]
+    pub async fn get_method_list(&mut self) -> [String];
 
     pub async fn get_session_state<T: FromIterator<InfoHash>>(&mut self) -> Result<T> {
         let val = make_request!(self, "core.get_session_state");
