@@ -1,5 +1,5 @@
 use serde_json::Value;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize, Serializer};
 
 use crate::encoding;
 use crate::rpc;
@@ -31,6 +31,64 @@ pub struct Session {
     stream: WriteStream,
     prev_req_id: i64,
     listeners: mpsc::Sender<(i64, RpcSender)>,
+}
+
+#[allow(dead_code)]
+#[derive(Copy, Clone)]
+pub enum FilePriority { Skip = 0, Low = 1, Normal = 4, High = 7 }
+impl Default for FilePriority { fn default() -> Self { Self::Normal } }
+impl Serialize for FilePriority {
+    fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+        serializer.serialize_u8(*self as u8)
+    }
+}
+
+macro_rules! option_struct {
+    (
+        $(#[$attr:meta])*
+        $vis:vis struct $name:ident {
+            $(
+                $(#[$field_attr:meta])*
+                $field_vis:vis $field_name:ident: $field_type:ty
+            ),*$(,)?
+        }
+    ) => {
+        $(#[$attr])*
+        $vis struct $name {
+            $(
+                $(#[$field_attr])*
+                $field_vis $field_name: std::option::Option<$field_type>
+            ),*
+        }
+    }
+}
+
+option_struct! {
+    #[derive(Clone, Default, Serialize)]
+    pub struct TorrentOptions {
+        pub add_paused: bool,
+        pub auto_managed: bool,
+        pub download_location: String,
+        pub file_priorities: Vec<FilePriority>,
+        pub mapped_files: std::collections::HashMap<String, String>,
+        pub max_connections: i64,
+        pub max_download_speed: f64,
+        pub max_upload_slots: i64,
+        pub max_upload_speed: f64,
+        pub move_completed: bool,
+        pub move_completed_path: String,
+        pub name: String,
+        pub owner: String,
+        pub pre_allocate_storage: bool,
+        pub prioritize_first_last_pieces: bool,
+        pub remove_at_ratio: bool,
+        pub seed_mode: bool, // Only used when adding a torrent
+        pub sequential_download: bool,
+        pub shared: bool,
+        pub stop_at_ratio: bool,
+        pub stop_ratio: f64,
+        pub super_seeding: bool,
+    }
 }
 
 #[macro_export]
@@ -245,31 +303,31 @@ impl Session {
         Ok(ret)
     }
 
-    pub async fn add_torrent_file(&mut self, filename: &str, filedump: &str, options: Option<Dict>) -> Result<Option<InfoHash>> {
+    pub async fn add_torrent_file(&mut self, filename: &str, filedump: &str, options: &TorrentOptions) -> Result<Option<InfoHash>> {
         let val = make_request!(self, "core.add_torrent_file", [filename, filedump, options]);
         expect_val!(val, ?Value::String(s), "an infohash or None", s)
     }
 
-    pub async fn add_torrent_file_async(&mut self, _filename: &str, _filedump: &str, _options: Option<Dict>, _save_state: bool) -> Result<Option<InfoHash>> {
+    pub async fn add_torrent_file_async(&mut self, _filename: &str, _filedump: &str, _options: &TorrentOptions, _save_state: bool) -> Result<Option<InfoHash>> {
         unimplemented!("When communicating over RPC, this function seems to be identical to add_torrent_file.
                         Nothing in the DelugeRPC API actually sends a Deferred object over RPC.
                         Besides, that'd be impossible; rencode can't serialize them.");
     }
 
-    pub async fn add_torrent_files(&mut self, torrent_files: &[(&str, &str, Option<Dict>)]) -> Result<()> {
+    pub async fn add_torrent_files(&mut self, torrent_files: &[(&str, &str, &TorrentOptions)]) -> Result<()> {
         let val = make_request!(self, "core.add_torrent_files", [torrent_files]);
         expect_nothing!(val)
     }
 
     // TODO: clientside validation, likely via type system.
     // honestly, that applies to a lot of this. `options` could be a struct.
-    pub async fn add_torrent_magnet(&mut self, uri: &str, options: Option<Dict>) -> Result<InfoHash> {
+    pub async fn add_torrent_magnet(&mut self, uri: &str, options: &TorrentOptions) -> Result<InfoHash> {
         let val = make_request!(self, "core.add_torrent_magnet", [uri, options]);
         expect_val!(val, Value::String(s), "an infohash", s)
     }
 
     // TODO: proper HTTP headers data structure
-    pub async fn add_torrent_url(&mut self, url: &str, options: Option<Dict>, headers: Option<Dict>) -> Result<Option<InfoHash>> {
+    pub async fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<Dict>) -> Result<Option<InfoHash>> {
         let val = make_request!(self, "core.add_torrent_url", [url, options, headers]);
         expect_val!(val, ?Value::String(s), "an infohash or None", s)
     }

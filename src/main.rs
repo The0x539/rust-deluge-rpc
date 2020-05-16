@@ -37,9 +37,10 @@ async fn main() {
 
     let filedump = std::fs::read("experiment/test.torrent").unwrap();
     let filedump2 = std::fs::read("experiment/shower.torrent").unwrap();
+    let foo = session::TorrentOptions::default();
     let res = session.add_torrent_files(&[
-        ("test.torrent", &base64::encode(filedump), None),
-        ("shower.torrent", &base64::encode(filedump2), None),
+        ("test.torrent", &base64::encode(filedump), &foo),
+        ("shower.torrent", &base64::encode(filedump2), &foo),
     ]).await;
     match res {
         Ok(r) => println!("{:?}", r),

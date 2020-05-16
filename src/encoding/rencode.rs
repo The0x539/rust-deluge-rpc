@@ -132,6 +132,21 @@ impl<'a, W: Write> ser::SerializeMap for &'a mut RencodeSerializer<W> {
     }
 }
 
+impl<'a, W: Write> ser::SerializeStruct for &'a mut RencodeSerializer<W> {
+    type Ok = ();
+    type Error = self::error::Error;
+    fn serialize_field<T: ?Sized + Serialize>(&mut self, key: &'static str, value: &T) -> Result<()> {
+        key.serialize(&mut **self)?;
+        value.serialize(&mut **self)
+    }
+    fn end(self) -> Result<()> {
+        if self.1.pop().unwrap() >= DICT_COUNT {
+            self.write_u8(types::TERM);
+        }
+        Ok(())
+    }
+}
+
 type Impossible = ser::Impossible<(), self::error::Error>;
 type Nope = Result<Impossible>;
 
@@ -142,10 +157,10 @@ impl<'a, W: Write> ser::Serializer for &'a mut RencodeSerializer<W> {
     type SerializeSeq = Self;
     type SerializeTuple = Self;
     type SerializeMap = Self;
+    type SerializeStruct = Self;
 
     type SerializeTupleStruct = Impossible;
     type SerializeTupleVariant = Impossible;
-    type SerializeStruct = Impossible;
     type SerializeStructVariant = Impossible;
 
     fn serialize_unit(self) -> Result<()> {
@@ -259,12 +274,22 @@ impl<'a, W: Write> ser::Serializer for &'a mut RencodeSerializer<W> {
         Ok(self)
     }
 
+    // Just treat structs as dicts.
+    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
+        if len < DICT_COUNT {
+            self.write_u8(DICT_START + len as u8);
+        } else {
+            self.write_u8(types::DICT);
+        }
+        self.1.push(len);
+        Ok(self)
+    }
+
     // Data types not supported by the real rencode
     fn serialize_char(self, _: char) -> Result<()> { unimplemented!() }
     fn serialize_u8(self, _: u8) -> Result<()> { unimplemented!() }
     fn serialize_u16(self, _: u16) -> Result<()> { unimplemented!() }
     fn serialize_u32(self, _: u32) -> Result<()> { unimplemented!() }
-    fn serialize_struct(self, _: &str, _: usize) -> Nope { unimplemented!() }
     fn serialize_struct_variant(self, _: &str, _: u32, _: &str, _: usize) -> Nope { unimplemented!() }
     fn serialize_unit_struct(self, _: &str) -> Result<()> { unimplemented!() }
     fn serialize_unit_variant(self, _: &str, _: u32, _: &str) -> Result<()> { unimplemented!() }
