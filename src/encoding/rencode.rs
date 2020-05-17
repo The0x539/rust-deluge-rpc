@@ -361,7 +361,7 @@ impl<'de> RencodeDeserializer<'de> {
         let len_str: &str = std::str::from_utf8(&len_bytes).unwrap();
         self.advance(len_str.len()); // the missing first byte and the terminating ':' cancel each other out
         let len: usize = len_str.parse().unwrap();
-        std::str::from_utf8(self.next_slice(len)).unwrap()
+        std::str::from_utf8(self.next_slice(len)).unwrap_or("some non-utf8 nonsense")
     }
 }
 
