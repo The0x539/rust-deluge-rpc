@@ -228,7 +228,7 @@ impl Session {
         Ok(Self { stream: writer, prev_req_id: 0, listeners: request_send, auth_level: 0 })
     }
 
-    #[rpc_method(class="daemon", method="info", auth_level = 0)]
+    #[rpc_method(class="daemon", method="info", auth_level=0)]
     pub async fn daemon_info(&mut self) -> String;
 
     #[rpc_method(class="daemon", auth_level=0, client_version="2.0.4.dev23")]
@@ -239,10 +239,8 @@ impl Session {
 
     // TODO: make private and add register_event_handler function that takes a channel or closure
     // (haven't decided which) and possibly an enum
-    pub async fn set_event_interest(&mut self, events: &[&str]) -> Result<()> {
-        let val = make_request!(self, "daemon.set_event_interest", [events]);
-        expect_val!(val, Value::Bool(true), "true", ())
-    }
+    #[rpc_method(class="daemon", auth_level=5)]
+    pub async fn set_event_interest(&mut self, events: &[&str]) -> bool;
 
     #[rpc_method(class="daemon", auth_level=5)]
     pub async fn shutdown(mut self) -> () {
@@ -260,17 +258,8 @@ impl Session {
     #[rpc_method(class="core", auth_level=5)]
     pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &str) -> T;
 
-    pub async fn get_torrents_status<T: Query, U: FromIterator<(InfoHash, T)>>(
-        &mut self,
-        filter_dict: Option<Dict>,
-    ) -> Result<U> {
-        let val = make_request!(self, "core.get_torrents_status", [filter_dict, T::keys()]);
-        let ret = expect_val!(val, Value::Object(m), "a map of torrents' statuses", m)?
-            .into_iter()
-            .map(|(hash, status)| (hash, serde_json::from_value(status).unwrap()))
-            .collect();
-        Ok(ret)
-    }
+    #[rpc_method(class="core", auth_level=5)]
+    pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<Dict>) -> Map<InfoHash, T>;
 
     #[rpc_method(class="core", auth_level=5)]
     pub async fn add_torrent_file(
