@@ -288,41 +288,41 @@ impl Session {
 
     // TODO: make private and add register_event_handler function that takes a channel or closure
     // (haven't decided which) and possibly an enum
-    #[rpc_method(class="daemon", auth_level=5)]
+    #[rpc_method(class="daemon")]
     pub async fn set_event_interest(&mut self, events: &[&str]) -> bool;
 
-    #[rpc_method(class="daemon", auth_level=5)]
+    #[rpc_method(class="daemon")]
     pub async fn shutdown(mut self) -> () {
         self.close().await
     }
 
-    #[rpc_method(class="daemon", auth_level=5)]
+    #[rpc_method(class="daemon")]
     pub async fn get_method_list(&mut self) -> [String];
 
-    #[rpc_method(class="core", auth_level=5)]
+    #[rpc_method]
     pub async fn get_session_state(&mut self) -> [InfoHash];
 
-    #[rpc_method(class="core", auth_level=5)]
+    #[rpc_method]
     pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &InfoHash) -> T;
 
-    #[rpc_method(class="core", auth_level=5)]
+    #[rpc_method]
     pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<Dict>) -> Map<InfoHash, T>;
 
-    #[rpc_method(class="core", auth_level=5)]
+    #[rpc_method]
     pub async fn add_torrent_file(&mut self, filename: &str, filedump: &str, options: &TorrentOptions) -> Option<InfoHash>;
 
-    #[rpc_method(class="core", auth_level=5)]
+    #[rpc_method]
     pub async fn add_torrent_files(&mut self, torrent_files: &[(&str, &str, &TorrentOptions)]);
 
     // TODO: accept a guaranteed-valid struct for the magnet URI
-    #[rpc_method(class="core", auth_level=5)]
+    #[rpc_method]
     pub async fn add_torrent_magnet(&mut self, uri: &str, options: &TorrentOptions) -> InfoHash;
 
     // TODO: accept guaranteed-valid structs for the URL and HTTP headers
-    #[rpc_method(class="core", auth_level=5)]
+    #[rpc_method]
     pub async fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<Dict>) -> Option<InfoHash>;
 
-    #[rpc_method(class="core", auth_level=5)]
+    #[rpc_method]
     pub async fn get_config(&mut self) -> Dict;
 
     pub async fn close(mut self) -> Result<()> {
