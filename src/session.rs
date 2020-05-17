@@ -110,7 +110,7 @@ impl Into<u8> for FilePriority {
     }
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
 #[serde(try_from = "u8", into = "u8")]
 pub enum AuthLevel { Nobody = 0, ReadOnly = 1, Normal = 5, Admin = 10 }
 impl Default for AuthLevel { fn default() -> Self { Self::Normal } }
@@ -322,10 +322,8 @@ impl Session {
     #[rpc_method]
     pub async fn force_recheck(&mut self, torrent_ids: &[&InfoHash]);
 
-    // TODO: make this actually return two maps of some sort.
-    // Not that this method is particularly useful, but...
     #[rpc_method]
-    pub async fn get_auth_levels_mappings(&mut self) -> (Value, Value);
+    pub async fn get_auth_levels_mappings(&mut self) -> (HashMap<String, AuthLevel>, HashMap<AuthLevel, String>);
 
     #[rpc_method]
     pub async fn get_config(&mut self) -> Dict;

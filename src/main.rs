@@ -38,5 +38,7 @@ async fn main() {
         println!("{}", label);
     }
 
+    println!("{:?}", session.get_auth_levels_mappings().await.unwrap());
+
     session.close().await.unwrap();
 }
