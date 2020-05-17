@@ -2,14 +2,6 @@ use std::collections::HashMap;
 use serde_yaml::{self, Value};
 use serde::de;
 
-// NOTE: the server should receive a (serialized) list of these, not one
-#[derive(Clone)]
-pub struct Request {
-    pub method: &'static str,
-    pub args: Vec<Value>,
-    pub kwargs: HashMap<String, Value>,
-}
-
 const RPC_RESPONSE: i64 = 1;
 const RPC_ERROR: i64 = 2;
 const RPC_EVENT: i64 = 3;

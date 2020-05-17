@@ -83,7 +83,7 @@ impl std::fmt::Debug for InfoHash {
 
 pub struct Session {
     stream: WriteStream,
-    prev_req_id: i64,
+    cur_req_id: i64,
     listeners: mpsc::Sender<(i64, RpcSender)>,
     auth_level: AuthLevel,
 }
@@ -133,12 +133,9 @@ macro_rules! make_request {
     ) => {
         {
             use maplit::{convert_args, hashmap};
-            let req = $crate::rpc::Request {
-                method: $method,
-                args: vec![$($(serde_yaml::to_value($arg).unwrap()),*)?],
-                kwargs: convert_args!(keys=String::from, values=Value::from, hashmap!($($($kw => $kwarg),*)?))
-            };
-            $self.request(req).await?
+            let args = vec![$($(serde_yaml::to_value($arg).unwrap()),*)?];
+            let kwargs = convert_args!(keys=String::from, values=Value::from, hashmap!($($($kw => $kwarg),*)?));
+            $self.request($method, args, kwargs).await?
         }
     }
 }
@@ -149,11 +146,6 @@ pub trait Query: for<'de> Deserialize<'de> {
 
 #[allow(dead_code)]
 impl Session {
-    fn prepare_request(&mut self, request: rpc::Request) -> RequestTuple {
-        self.prev_req_id += 1;
-        (self.prev_req_id, request.method, request.args, request.kwargs)
-    }
-
     async fn send(&mut self, req: RequestTuple) -> Result<()> {
         let body = encoding::encode(&[req]).unwrap();
         self.stream.write_u8(1).await?;
@@ -163,9 +155,10 @@ impl Session {
         Ok(())
     }
 
-    async fn request(&mut self, req: rpc::Request) -> Result<List> {
-        let request = self.prepare_request(req);
-        let id = request.0;
+    async fn request(&mut self, method: &'static str, args: List, kwargs: Dict) -> Result<List> {
+        let id = self.cur_req_id;
+        self.cur_req_id += 1;
+        let request: RequestTuple = (id, method, args, kwargs);
 
         let (sender, receiver) = oneshot::channel();
         self.listeners.send((id, sender))
@@ -199,7 +192,7 @@ impl Session {
 
         MessageReceiver::spawn(reader, request_recv);
 
-        Ok(Self { stream: writer, prev_req_id: 0, listeners: request_send, auth_level: AuthLevel::default() })
+        Ok(Self { stream: writer, cur_req_id: 0, listeners: request_send, auth_level: AuthLevel::default() })
     }
 
     #[rpc_method(class="daemon", method="info", auth_level="Nobody")]
