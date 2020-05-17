@@ -15,13 +15,14 @@ use tokio::net::TcpStream;
 use std::sync::Arc;
 use std::iter::FromIterator;
 use std::convert::TryFrom;
+use std::collections::HashMap;
 
 use tokio::prelude::*;
 use tokio::sync::{oneshot, mpsc};
 
 type List = Vec<Value>;
 // I don't expect to come across any non-string keys.
-type Dict = std::collections::HashMap<String, Value>;
+type Dict = HashMap<String, Value>;
 
 type WriteStream = io::WriteHalf<TlsStream<TcpStream>>;
 type RequestTuple = (i64, &'static str, List, Dict);
@@ -331,8 +332,30 @@ impl Session {
     #[rpc_method]
     pub async fn force_recheck(&mut self, torrent_ids: &[&InfoHash]);
 
+    // TODO: make this actually return two maps of some sort.
+    // Not that this method is particularly useful, but...
+    #[rpc_method]
+    pub async fn get_auth_levels_mappings(&mut self) -> (Value, Value);
+
     #[rpc_method]
     pub async fn get_config(&mut self) -> Dict;
+
+    #[rpc_method]
+    pub async fn get_config_value(&mut self, key: &str) -> Value;
+
+    #[rpc_method]
+    pub async fn get_config_values(&mut self, keys: &[&str]) -> Dict;
+
+    #[rpc_method]
+    pub async fn get_enabled_plugins(&mut self) -> [String];
+
+    // TODO: guarantee to the client that the IP is valid
+    #[rpc_method]
+    pub async fn get_external_ip(&mut self) -> String;
+
+    // TODO: figure out why my fake Map type makes this unhappy
+    #[rpc_method]
+    pub async fn get_filter_tree(&mut self, show_zero_hits: bool, hide_cat: &[&str]) -> HashMap<String, Vec<(String, u64)>>;
 
     pub async fn close(mut self) -> Result<()> {
         self.stream.shutdown().await?;
