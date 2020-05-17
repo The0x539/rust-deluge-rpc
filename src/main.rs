@@ -51,7 +51,7 @@ async fn main() {
     }
     */
 
-    println!("{}", serde_yaml::to_string(&session.get_filter_tree(true, &[]).await.unwrap()).unwrap());
+    println!("{}", serde_yaml::to_string(&session.get_filter_tree::<HashMap<_, _>>(true, &[]).await.unwrap()).unwrap());
 
     /*
     for method in session.get_method_list::<Vec<String>>().await.unwrap() {

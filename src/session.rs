@@ -353,9 +353,8 @@ impl Session {
     #[rpc_method]
     pub async fn get_external_ip(&mut self) -> String;
 
-    // TODO: figure out why my fake Map type makes this unhappy
     #[rpc_method]
-    pub async fn get_filter_tree(&mut self, show_zero_hits: bool, hide_cat: &[&str]) -> HashMap<String, Vec<(String, u64)>>;
+    pub async fn get_filter_tree(&mut self, show_zero_hits: bool, hide_cat: &[&str]) -> Map<String, Vec<(String, u64)>>;
 
     pub async fn close(mut self) -> Result<()> {
         self.stream.shutdown().await?;
