@@ -26,7 +26,8 @@ type WriteStream = io::WriteHalf<TlsStream<TcpStream>>;
 type RequestTuple = (i64, &'static str, List, Dict);
 type RpcSender = oneshot::Sender<rpc::Result<List>>;
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct InfoHash([u8; 20]);
 
 impl InfoHash {
@@ -55,6 +56,17 @@ impl InfoHash {
     }
 }
 
+impl Into<String> for InfoHash {
+    fn into(self) -> String { self.to_string() }
+}
+
+impl std::convert::TryFrom<String> for InfoHash {
+    type Error = &'static str;
+    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+        Self::from_hex(&value).ok_or("invalid infohash")
+    }
+}
+
 impl std::fmt::Display for InfoHash {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         f.write_str(&self.to_hex())
@@ -64,12 +76,6 @@ impl std::fmt::Display for InfoHash {
 impl std::fmt::Debug for InfoHash {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
-    }
-}
-
-impl Serialize for InfoHash {
-    fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.to_hex())
     }
 }
 
