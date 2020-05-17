@@ -1,6 +1,6 @@
 mod encoding;
 mod rpc;
-#[macro_use] mod session;
+mod session;
 mod error;
 mod receiver;
 mod wtf;

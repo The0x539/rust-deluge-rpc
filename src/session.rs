@@ -123,23 +123,6 @@ pub struct TorrentOptions {
     pub super_seeding: bool,
 }
 
-macro_rules! make_request {
-    (
-        $self:ident,
-        $method:literal
-        $(, [$($arg:expr),*])?
-        $(, {$($kw:expr => $kwarg:expr),*})?
-        $(,)?
-    ) => {
-        {
-            use maplit::{convert_args, hashmap};
-            let args = vec![$($(serde_yaml::to_value($arg).unwrap()),*)?];
-            let kwargs = convert_args!(keys=String::from, values=Value::from, hashmap!($($($kw => $kwarg),*)?));
-            $self.request($method, args, kwargs).await?
-        }
-    }
-}
-
 pub trait Query: for<'de> Deserialize<'de> {
     fn keys() -> &'static [&'static str];
 }
