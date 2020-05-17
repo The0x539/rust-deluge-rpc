@@ -322,6 +322,38 @@ impl Session {
     #[rpc_method]
     pub async fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<Dict>) -> Option<InfoHash>;
 
+    // TODO: IP address struct
+    #[rpc_method]
+    pub async fn connect_peer(&mut self, torrent_id: &InfoHash, peer_ip: &str, port: u16);
+
+    #[rpc_method(auth_level=10)]
+    pub async fn create_account(&mut self, username: &str, password: &str, auth_level: i64);
+
+    // FORGIVE ME: I have no idea whether these types are correct.
+    #[rpc_method]
+    pub async fn create_torrent(
+        &mut self,
+        path: &str,
+        comment: &str,
+        target: &str,
+        webseeds: &[&str],
+        private: bool,
+        created_by: &str,
+        add_to_session: bool,
+    );
+
+    #[rpc_method]
+    pub async fn disable_plugin(&mut self, plugin: &str);
+
+    #[rpc_method]
+    pub async fn enable_plugin(&mut self, plugin: &str);
+
+    #[rpc_method]
+    pub async fn force_reannounce(&mut self, torrent_ids: &[&InfoHash]);
+
+    #[rpc_method]
+    pub async fn force_recheck(&mut self, torrent_ids: &[&InfoHash]);
+
     #[rpc_method]
     pub async fn get_config(&mut self) -> Dict;
 
