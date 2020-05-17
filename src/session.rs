@@ -15,6 +15,7 @@ use tokio::net::TcpStream;
 use std::sync::Arc;
 use std::convert::TryFrom;
 use std::collections::HashMap;
+use std::net::IpAddr;
 
 use tokio::prelude::*;
 use tokio::sync::{oneshot, mpsc};
@@ -87,51 +88,13 @@ pub struct Session {
     auth_level: AuthLevel,
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
-#[serde(try_from = "u8", into = "u8")]
+#[value_enum(u8)]
 pub enum FilePriority { Skip = 0, Low = 1, Normal = 4, High = 7 }
 impl Default for FilePriority { fn default() -> Self { Self::Normal } }
-impl TryFrom<u8> for FilePriority {
-    type Error = String;
-    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
-        let p = match value {
-            0 => Self::Skip,
-            1 => Self::Low,
-            4 => Self::Normal,
-            7 => Self::High,
-            _ => return Err(format!("Unknown priority: {}", value)),
-        };
-        Ok(p)
-    }
-}
-impl Into<u8> for FilePriority {
-    fn into(self) -> u8 {
-        self as u8
-    }
-}
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug)]
-#[serde(try_from = "u8", into = "u8")]
+#[value_enum(u8)]
 pub enum AuthLevel { Nobody = 0, ReadOnly = 1, Normal = 5, Admin = 10 }
 impl Default for AuthLevel { fn default() -> Self { Self::Normal } }
-impl TryFrom<u8> for AuthLevel {
-    type Error = String;
-    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
-        let p = match value {
-            0 => Self::Nobody,
-            1 => Self::ReadOnly,
-            5 => Self::Normal,
-            10 => Self::Admin,
-            _ => return Err(format!("Unknown priority: {}", value)),
-        };
-        Ok(p)
-    }
-}
-impl Into<u8> for AuthLevel {
-    fn into(self) -> u8 {
-        self as u8
-    }
-}
 
 #[option_struct]
 #[derive(Clone, Default)]
@@ -140,7 +103,7 @@ pub struct TorrentOptions {
     pub auto_managed: bool,
     pub download_location: String,
     pub file_priorities: Vec<FilePriority>,
-    pub mapped_files: std::collections::HashMap<String, String>,
+    pub mapped_files: HashMap<String, String>,
     pub max_connections: i64,
     pub max_download_speed: f64,
     pub max_upload_slots: i64,
@@ -292,7 +255,7 @@ impl Session {
 
     // TODO: IP address struct
     #[rpc_method]
-    pub async fn connect_peer(&mut self, torrent_id: InfoHash, peer_ip: &str, port: u16);
+    pub async fn connect_peer(&mut self, torrent_id: InfoHash, peer_ip: IpAddr, port: u16);
 
     #[rpc_method(auth_level="Admin")]
     pub async fn create_account(&mut self, username: &str, password: &str, auth_level: i64);
@@ -322,6 +285,7 @@ impl Session {
     #[rpc_method]
     pub async fn force_recheck(&mut self, torrent_ids: &[InfoHash]);
 
+    // I hardcoded these same mappings into the AuthLevel enum, so this isn't particularly useful, but hey
     #[rpc_method]
     pub async fn get_auth_levels_mappings(&mut self) -> (HashMap<String, AuthLevel>, HashMap<AuthLevel, String>);
 
@@ -337,9 +301,8 @@ impl Session {
     #[rpc_method]
     pub async fn get_enabled_plugins(&mut self) -> Vec<String>;
 
-    // TODO: guarantee to the client that the IP is valid
     #[rpc_method]
-    pub async fn get_external_ip(&mut self) -> String;
+    pub async fn get_external_ip(&mut self) -> IpAddr;
 
     #[rpc_method]
     pub async fn get_filter_tree(&mut self, show_zero_hits: bool, hide_cat: &[&str]) -> HashMap<String, Vec<(String, u64)>>;
