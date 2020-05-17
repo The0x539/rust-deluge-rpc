@@ -195,66 +195,6 @@ macro_rules! make_request {
     }
 }
 
-macro_rules! expect {
-    ($val:expr, ?$pat:pat, $expected:expr, $result:expr) => {
-        match $val {
-            $pat => Ok(Some($result)),
-            Value::Null => Ok(None),
-            x => Err(Error::expected($expected, x)),
-        }
-    };
-
-    ($val:expr, $pat:pat, $expected:expr, $result:expr) => {
-        match $val {
-            $pat => Ok($result),
-            x => Err(Error::expected($expected, x)),
-        }
-    }
-}
-
-macro_rules! expect_nothing {
-    ($val:expr) => {
-        if $val.is_empty() {
-            Ok(())
-        } else {
-            Err(Error::expected("nothing", $val))
-        }
-    }
-}
-
-macro_rules! expect_val {
-    ($val:expr, $pat:pat, $expected:expr, $result:expr) => {
-        match $val.len() {
-            1 => expect!($val.into_iter().next().unwrap(), $pat, $expected, $result),
-            _ => Err(Error::expected(std::concat!("a list containing only ", $expected), $val)),
-        }
-    }
-}
-
-macro_rules! expect_option {
-    ($val:expr, $pat:pat, $expected:expr, $result:expr) => {
-        match $val.len() {
-            1 => expect!($val.into_iter().next().unwrap(), ?$pat, $expected, $result),
-            _ => Err(Error::expected(std::concat!("a list containing only ", $expected), $val)),
-        }
-    };
-}
-
-macro_rules! expect_seq {
-    ($val:expr, $pat:pat, $expected_val:literal, $result:expr) => {
-        $val.into_iter()
-            .map(|x| match x {
-                $pat => Ok($result.into()),
-                v => {
-                    let expected = std::concat!("a list where every item is ", $expected_val);
-                    let actual = format!("a list containing {:?}", v);
-                    Err(Error::expected(expected, actual))
-                }
-            })
-            .collect::<Result<_>>()
-    }
-}
-
 pub trait Query: for<'de> Deserialize<'de> {
     fn keys() -> &'static [&'static str];
 }
