@@ -15,7 +15,7 @@ use tokio::net::TcpStream;
 use std::sync::Arc;
 use std::convert::TryFrom;
 use std::collections::HashMap;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 
 use tokio::prelude::*;
 use tokio::sync::{oneshot, mpsc};
@@ -214,12 +214,15 @@ impl Session {
     #[rpc_method]
     pub async fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<Dict>) -> Option<InfoHash>;
 
-    // TODO: IP address struct
     #[rpc_method]
-    pub async fn connect_peer(&mut self, torrent_id: InfoHash, peer_ip: IpAddr, port: u16);
+    async fn _connect_peer(&mut self, torrent_id: InfoHash, peer_ip: IpAddr, port: u16);
+
+    pub async fn connect_peer(&mut self, torrent_id: InfoHash, peer_addr: SocketAddr) -> Result<()> {
+        self._connect_peer(torrent_id, peer_addr.ip(), peer_addr.port()).await
+    }
 
     #[rpc_method(auth_level="Admin")]
-    pub async fn create_account(&mut self, username: &str, password: &str, auth_level: i64);
+    pub async fn create_account(&mut self, username: &str, password: &str, auth_level: AuthLevel);
 
     // FORGIVE ME: I have no idea whether these types are correct.
     #[rpc_method]
