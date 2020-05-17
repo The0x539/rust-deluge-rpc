@@ -1,7 +1,7 @@
 use deluge_macro::*;
 
 use serde_json::Value;
-use serde::{Serialize, Deserialize, Serializer};
+use serde::{Serialize, Deserialize};
 
 use crate::encoding;
 use crate::rpc;
@@ -14,6 +14,7 @@ use tokio::net::TcpStream;
 
 use std::sync::Arc;
 use std::iter::FromIterator;
+use std::convert::TryFrom;
 
 use tokio::prelude::*;
 use tokio::sync::{oneshot, mpsc};
@@ -60,7 +61,7 @@ impl Into<String> for InfoHash {
     fn into(self) -> String { self.to_string() }
 }
 
-impl std::convert::TryFrom<String> for InfoHash {
+impl TryFrom<String> for InfoHash {
     type Error = &'static str;
     fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
         Self::from_hex(&value).ok_or("invalid infohash")
@@ -83,16 +84,52 @@ pub struct Session {
     stream: WriteStream,
     prev_req_id: i64,
     listeners: mpsc::Sender<(i64, RpcSender)>,
-    auth_level: i64,
+    auth_level: AuthLevel,
 }
 
-#[allow(dead_code)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Serialize, Deserialize)]
+#[serde(try_from = "u8", into = "u8")]
 pub enum FilePriority { Skip = 0, Low = 1, Normal = 4, High = 7 }
 impl Default for FilePriority { fn default() -> Self { Self::Normal } }
-impl Serialize for FilePriority {
-    fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
-        serializer.serialize_u8(*self as u8)
+impl TryFrom<u8> for FilePriority {
+    type Error = String;
+    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+        let p = match value {
+            0 => Self::Skip,
+            1 => Self::Low,
+            4 => Self::Normal,
+            7 => Self::High,
+            _ => return Err(format!("Unknown priority: {}", value)),
+        };
+        Ok(p)
+    }
+}
+impl Into<u8> for FilePriority {
+    fn into(self) -> u8 {
+        self as u8
+    }
+}
+
+#[derive(Copy, Clone, Serialize, Deserialize)]
+#[serde(try_from = "u8", into = "u8")]
+pub enum AuthLevel { Nobody = 0, ReadOnly = 1, Normal = 4, Admin = 7 }
+impl Default for AuthLevel { fn default() -> Self { Self::Normal } }
+impl TryFrom<u8> for AuthLevel {
+    type Error = String;
+    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+        let p = match value {
+            0 => Self::Nobody,
+            1 => Self::ReadOnly,
+            5 => Self::Normal,
+            10 => Self::Admin,
+            _ => return Err(format!("Unknown priority: {}", value)),
+        };
+        Ok(p)
+    }
+}
+impl Into<u8> for AuthLevel {
+    fn into(self) -> u8 {
+        self as u8
     }
 }
 
@@ -274,14 +311,14 @@ impl Session {
 
         MessageReceiver::spawn(reader, request_recv);
 
-        Ok(Self { stream: writer, prev_req_id: 0, listeners: request_send, auth_level: 0 })
+        Ok(Self { stream: writer, prev_req_id: 0, listeners: request_send, auth_level: AuthLevel::default() })
     }
 
-    #[rpc_method(class="daemon", method="info", auth_level=0)]
+    #[rpc_method(class="daemon", method="info", auth_level="Nobody")]
     pub async fn daemon_info(&mut self) -> String;
 
-    #[rpc_method(class="daemon", auth_level=0, client_version="2.0.4.dev23")]
-    pub async fn login(&mut self, username: &str, password: &str) -> i64 {
+    #[rpc_method(class="daemon", auth_level="Nobody", client_version="2.0.4.dev23")]
+    pub async fn login(&mut self, username: &str, password: &str) -> AuthLevel {
         self.auth_level = val;
         Ok(self.auth_level)
     }
@@ -326,7 +363,7 @@ impl Session {
     #[rpc_method]
     pub async fn connect_peer(&mut self, torrent_id: &InfoHash, peer_ip: &str, port: u16);
 
-    #[rpc_method(auth_level=10)]
+    #[rpc_method(auth_level="Admin")]
     pub async fn create_account(&mut self, username: &str, password: &str, auth_level: i64);
 
     // FORGIVE ME: I have no idea whether these types are correct.
