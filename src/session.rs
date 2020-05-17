@@ -168,7 +168,6 @@ macro_rules! expect_seq {
     }
 }
 
-// TODO: derive macro
 pub trait Query: for<'de> Deserialize<'de> {
     fn keys() -> &'static [&'static str];
 }
@@ -262,30 +261,18 @@ impl Session {
     pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<Dict>) -> Map<InfoHash, T>;
 
     #[rpc_method(class="core", auth_level=5)]
-    pub async fn add_torrent_file(
-        &mut self,
-        filename: &str,
-        filedump: &str,
-        options: &TorrentOptions
-    ) -> Option<InfoHash>;
+    pub async fn add_torrent_file(&mut self, filename: &str, filedump: &str, options: &TorrentOptions) -> Option<InfoHash>;
 
-    pub async fn add_torrent_files(&mut self, torrent_files: &[(&str, &str, &TorrentOptions)]) -> Result<()> {
-        let val = make_request!(self, "core.add_torrent_files", [torrent_files]);
-        expect_nothing!(val)
-    }
+    #[rpc_method(class="core", auth_level=5)]
+    pub async fn add_torrent_files(&mut self, torrent_files: &[(&str, &str, &TorrentOptions)]);
 
-    // TODO: clientside validation, likely via type system.
-    // honestly, that applies to a lot of this. `options` could be a struct.
-    pub async fn add_torrent_magnet(&mut self, uri: &str, options: &TorrentOptions) -> Result<InfoHash> {
-        let val = make_request!(self, "core.add_torrent_magnet", [uri, options]);
-        expect_val!(val, Value::String(s), "an infohash", s)
-    }
+    // TODO: accept a guaranteed-valid struct for the magnet URI
+    #[rpc_method(class="core", auth_level=5)]
+    pub async fn add_torrent_magnet(&mut self, uri: &str, options: &TorrentOptions) -> InfoHash;
 
-    // TODO: proper HTTP headers data structure
-    pub async fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<Dict>) -> Result<Option<InfoHash>> {
-        let val = make_request!(self, "core.add_torrent_url", [url, options, headers]);
-        expect_option!(val, Value::String(s), "an infohash or None", s)
-    }
+    // TODO: accept guaranteed-valid structs for the URL and HTTP headers
+    #[rpc_method(class="core", auth_level=5)]
+    pub async fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<Dict>) -> Option<InfoHash>;
 
     #[rpc_method(class="core", auth_level=5)]
     pub async fn get_config(&mut self) -> Dict;
