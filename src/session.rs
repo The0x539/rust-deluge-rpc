@@ -123,38 +123,23 @@ pub struct TorrentOptions {
     pub super_seeding: bool,
 }
 
-#[macro_export]
-macro_rules! dict {
-    ($($key:expr => $val:expr),*$(,)?) => {
-        {
-            use maplit::hashmap;
-            maplit::convert_args!(
-                keys=String::from,
-                values=serde_yaml::Value::from,
-                hashmap!($($key => $val),*)
-            )
-        }
-    }
-}
-
-macro_rules! build_request {
+macro_rules! make_request {
     (
-        $method:expr
+        $self:ident,
+        $method:literal
         $(, [$($arg:expr),*])?
         $(, {$($kw:expr => $kwarg:expr),*})?
         $(,)?
     ) => {
-        $crate::rpc::Request {
-            method: $method,
-            args: vec![$($(serde_yaml::to_value($arg).unwrap()),*)?],
-            kwargs: dict!{$($($kw => $kwarg),*)?}
+        {
+            use maplit::{convert_args, hashmap};
+            let req = $crate::rpc::Request {
+                method: $method,
+                args: vec![$($(serde_yaml::to_value($arg).unwrap()),*)?],
+                kwargs: convert_args!(keys=String::from, values=Value::from, hashmap!($($($kw => $kwarg),*)?))
+            };
+            $self.request(req).await?
         }
-    };
-}
-
-macro_rules! make_request {
-    ($self:ident, $($arg:tt),*$(,)?) => {
-        $self.request(build_request!($($arg),*)).await?
     }
 }
 
