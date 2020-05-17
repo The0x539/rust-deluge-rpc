@@ -460,6 +460,30 @@ impl Session {
     #[rpc_method(class="daemon", auth_level="ReadOnly")]
     pub async fn authorized_call(&mut self, rpc: &str) -> bool;
 
+    #[rpc_method(class="label")]
+    pub async fn get_labels(&mut self) -> [String];
+
+    #[rpc_method(class="label", method="add")]
+    pub async fn add_label(&mut self, label_id: &str);
+
+    #[rpc_method(class="label", method="remove")]
+    pub async fn remove_label(&mut self, label_id: &str);
+
+    #[rpc_method(class="label", method="get_options")]
+    pub async fn get_label_options(&mut self, label_id: &str) -> Dict;
+
+    #[rpc_method(class="label", method="set_options")]
+    pub async fn set_label_options(&mut self, label_id: &str, options: Dict);
+
+    #[rpc_method(class="label", method="set_torrent")]
+    pub async fn set_torrent_label(&mut self, torrent_id: &InfoHash, label_id: &str);
+
+    #[rpc_method(class="label", method="get_config")]
+    pub async fn get_label_config(&mut self) -> Dict;
+
+    #[rpc_method(class="label", method="set_config")]
+    pub async fn set_label_config(&mut self, config: Dict);
+
     pub async fn close(mut self) -> Result<()> {
         self.stream.shutdown().await?;
         Ok(())
