@@ -454,6 +454,12 @@ impl Session {
     #[rpc_method]
     pub async fn upload_plugin(&mut self, filename: &str, filedump: &[u8]);
 
+    #[rpc_method(class="daemon")]
+    pub async fn get_version(&mut self) -> String;
+
+    #[rpc_method(class="daemon", auth_level="ReadOnly")]
+    pub async fn authorized_call(&mut self, rpc: &str) -> bool;
+
     pub async fn close(mut self) -> Result<()> {
         self.stream.shutdown().await?;
         Ok(())

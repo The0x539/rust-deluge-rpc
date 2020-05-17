@@ -5,9 +5,6 @@ mod error;
 mod receiver;
 mod wtf;
 use session::*;
-use deluge_macro::*;
-
-use serde::Deserialize;
 
 fn read_file(path: &'static str) -> String {
     std::fs::read_to_string(path).unwrap()
