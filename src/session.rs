@@ -112,7 +112,7 @@ impl Into<u8> for FilePriority {
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
 #[serde(try_from = "u8", into = "u8")]
-pub enum AuthLevel { Nobody = 0, ReadOnly = 1, Normal = 4, Admin = 7 }
+pub enum AuthLevel { Nobody = 0, ReadOnly = 1, Normal = 5, Admin = 10 }
 impl Default for AuthLevel { fn default() -> Self { Self::Normal } }
 impl TryFrom<u8> for AuthLevel {
     type Error = String;
