@@ -278,15 +278,6 @@ impl Session {
     pub async fn get_method_list(&mut self) -> [String];
 
     #[rpc_method]
-    pub async fn get_session_state(&mut self) -> [InfoHash];
-
-    #[rpc_method]
-    pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &InfoHash) -> T;
-
-    #[rpc_method]
-    pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<Dict>) -> Map<InfoHash, T>;
-
-    #[rpc_method]
     pub async fn add_torrent_file(&mut self, filename: &str, filedump: &str, options: &TorrentOptions) -> Option<InfoHash>;
 
     #[rpc_method]
@@ -355,6 +346,113 @@ impl Session {
 
     #[rpc_method]
     pub async fn get_filter_tree(&mut self, show_zero_hits: bool, hide_cat: &[&str]) -> Map<String, Vec<(String, u64)>>;
+
+    #[rpc_method]
+    pub async fn get_free_space(&mut self, path: Option<&str>) -> u64;
+
+    #[rpc_method(auth_level="Admin")]
+    pub async fn get_known_accounts(&mut self) -> [Dict];
+
+    #[rpc_method]
+    pub async fn get_libtorrent_version(&mut self) -> String;
+
+    #[rpc_method]
+    pub async fn get_listen_port(&mut self) -> u16;
+
+    // Uses a return value of -1 rather than a proper error to indicate filesystem errors.
+    // Why? Is this a thin wrapper for some system call?
+    #[rpc_method]
+    pub async fn get_path_size(&mut self, path: &str) -> i64;
+
+    #[rpc_method]
+    pub async fn get_proxy(&mut self) -> Dict;
+
+    #[rpc_method]
+    pub async fn get_session_state(&mut self) -> [InfoHash];
+
+    #[rpc_method]
+    pub async fn get_session_status(&mut self, keys: &[&str]) -> Map<String, Value>;
+
+    #[rpc_method]
+    pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &InfoHash) -> T;
+
+    #[rpc_method]
+    pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<Dict>) -> Map<InfoHash, T>;
+
+    #[rpc_method]
+    pub async fn glob(&mut self, path: &str) -> [String];
+
+    #[rpc_method(method="is_session_paused")]
+    pub async fn is_libtorrent_session_paused(&mut self) -> bool;
+
+    #[rpc_method]
+    pub async fn move_storage(&mut self, torrent_ids: &[&InfoHash], dest: &str);
+
+    #[rpc_method(method="pause_session")]
+    pub async fn pause_libtorrent_session(&mut self);
+
+    #[rpc_method]
+    pub async fn pause_torrent(&mut self, torrent_id: &InfoHash);
+
+    #[rpc_method]
+    pub async fn pause_torrents(&mut self, torrent_ids: &[&InfoHash]);
+
+    #[rpc_method]
+    pub async fn prefetch_magnet_metadata(&mut self, magnet: &str, timeout: u64) -> (Value, Value);
+
+    #[rpc_method]
+    pub async fn queue_bottom(&mut self, torrent_ids: &[&InfoHash]);
+
+    #[rpc_method]
+    pub async fn queue_down(&mut self, torrent_ids: &[&InfoHash]);
+
+    #[rpc_method]
+    pub async fn queue_top(&mut self, torrent_ids: &[&InfoHash]);
+
+    #[rpc_method]
+    pub async fn queue_up(&mut self, torrent_ids: &[&InfoHash]);
+
+    #[rpc_method(auth_level="Admin")]
+    pub async fn remove_account(&mut self, username: &str);
+
+    #[rpc_method]
+    pub async fn remove_torrent(&mut self, torrent_id: &InfoHash, remove_data: bool);
+
+    #[rpc_method]
+    pub async fn remove_torrents(&mut self, torrent_ids: &[&InfoHash], remove_data: bool);
+
+    #[rpc_method]
+    pub async fn rename_files(&mut self, torrent_id: &InfoHash, filenames: &[(u64, &str)]);
+
+    #[rpc_method]
+    pub async fn rename_folder(&mut self, torrent_id: &InfoHash, folder: &str, new_folder: &str);
+
+    #[rpc_method]
+    pub async fn rescan_plugins(&mut self);
+
+    #[rpc_method(method="resume_session")]
+    pub async fn resume_libtorrent_session(&mut self);
+
+    #[rpc_method]
+    pub async fn resume_torrent(&mut self, torrent_id: &InfoHash);
+
+    #[rpc_method]
+    pub async fn resume_torrents(&mut self, torrent_ids: &[&InfoHash]);
+
+    #[rpc_method]
+    pub async fn set_config(&mut self, config: Dict);
+
+    #[rpc_method]
+    pub async fn set_torrent_options(&mut self, torrent_ids: &[&InfoHash], options: &TorrentOptions);
+
+    #[rpc_method]
+    pub async fn test_listen_port(&mut self) -> bool;
+
+    #[rpc_method(auth_level="Admin")]
+    pub async fn update_account(&mut self, username: &str, password: &str, auth_level: AuthLevel);
+
+    #[rpc_method]
+    pub async fn upload_plugin(&mut self, filename: &str, filedump: &[u8]);
 
     pub async fn close(mut self) -> Result<()> {
         self.stream.shutdown().await?;
