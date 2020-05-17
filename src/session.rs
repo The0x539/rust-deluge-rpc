@@ -28,7 +28,7 @@ type WriteStream = io::WriteHalf<TlsStream<TcpStream>>;
 type RequestTuple = (i64, &'static str, List, Dict);
 type RpcSender = oneshot::Sender<rpc::Result<List>>;
 
-#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(try_from = "String", into = "String")]
 pub struct InfoHash([u8; 20]);
 
