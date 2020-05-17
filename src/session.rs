@@ -214,7 +214,7 @@ macro_rules! expect_seq {
                     Err(Error::expected(expected, actual))
                 }
             })
-            .collect()
+            .collect::<Result<_>>()
     }
 }
 
@@ -282,7 +282,7 @@ impl Session {
 
     #[rpc_method(class="daemon", auth_level=0, client_version="2.0.4.dev23")]
     pub async fn login(&mut self, username: &str, password: &str) -> i64 {
-        self.auth_level = val?;
+        self.auth_level = val;
         Ok(self.auth_level)
     }
 
@@ -293,8 +293,6 @@ impl Session {
 
     #[rpc_method(class="daemon", auth_level=5)]
     pub async fn shutdown(mut self) -> () {
-        // TODO: restructure the macros so that val isn't a Result
-        val?;
         self.close().await
     }
 
