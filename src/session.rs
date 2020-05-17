@@ -292,7 +292,7 @@ impl Session {
 
     // TODO: IP address struct
     #[rpc_method]
-    pub async fn connect_peer(&mut self, torrent_id: &InfoHash, peer_ip: &str, port: u16);
+    pub async fn connect_peer(&mut self, torrent_id: InfoHash, peer_ip: &str, port: u16);
 
     #[rpc_method(auth_level="Admin")]
     pub async fn create_account(&mut self, username: &str, password: &str, auth_level: i64);
@@ -317,10 +317,10 @@ impl Session {
     pub async fn enable_plugin(&mut self, plugin: &str);
 
     #[rpc_method]
-    pub async fn force_reannounce(&mut self, torrent_ids: &[&InfoHash]);
+    pub async fn force_reannounce(&mut self, torrent_ids: &[InfoHash]);
 
     #[rpc_method]
-    pub async fn force_recheck(&mut self, torrent_ids: &[&InfoHash]);
+    pub async fn force_recheck(&mut self, torrent_ids: &[InfoHash]);
 
     #[rpc_method]
     pub async fn get_auth_levels_mappings(&mut self) -> (HashMap<String, AuthLevel>, HashMap<AuthLevel, String>);
@@ -371,7 +371,7 @@ impl Session {
     pub async fn get_session_status(&mut self, keys: &[&str]) -> HashMap<String, Value>;
 
     #[rpc_method]
-    pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &InfoHash) -> T;
+    pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: InfoHash) -> T;
 
     #[rpc_method]
     pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<Dict>) -> HashMap<InfoHash, T>;
@@ -383,46 +383,46 @@ impl Session {
     pub async fn is_libtorrent_session_paused(&mut self) -> bool;
 
     #[rpc_method]
-    pub async fn move_storage(&mut self, torrent_ids: &[&InfoHash], dest: &str);
+    pub async fn move_storage(&mut self, torrent_ids: &[InfoHash], dest: &str);
 
     #[rpc_method(method="pause_session")]
     pub async fn pause_libtorrent_session(&mut self);
 
     #[rpc_method]
-    pub async fn pause_torrent(&mut self, torrent_id: &InfoHash);
+    pub async fn pause_torrent(&mut self, torrent_id: InfoHash);
 
     #[rpc_method]
-    pub async fn pause_torrents(&mut self, torrent_ids: &[&InfoHash]);
+    pub async fn pause_torrents(&mut self, torrent_ids: &[InfoHash]);
 
     #[rpc_method]
     pub async fn prefetch_magnet_metadata(&mut self, magnet: &str, timeout: u64) -> (Value, Value);
 
     #[rpc_method]
-    pub async fn queue_bottom(&mut self, torrent_ids: &[&InfoHash]);
+    pub async fn queue_bottom(&mut self, torrent_ids: &[InfoHash]);
 
     #[rpc_method]
-    pub async fn queue_down(&mut self, torrent_ids: &[&InfoHash]);
+    pub async fn queue_down(&mut self, torrent_ids: &[InfoHash]);
 
     #[rpc_method]
-    pub async fn queue_top(&mut self, torrent_ids: &[&InfoHash]);
+    pub async fn queue_top(&mut self, torrent_ids: &[InfoHash]);
 
     #[rpc_method]
-    pub async fn queue_up(&mut self, torrent_ids: &[&InfoHash]);
+    pub async fn queue_up(&mut self, torrent_ids: &[InfoHash]);
 
     #[rpc_method(auth_level="Admin")]
     pub async fn remove_account(&mut self, username: &str);
 
     #[rpc_method]
-    pub async fn remove_torrent(&mut self, torrent_id: &InfoHash, remove_data: bool);
+    pub async fn remove_torrent(&mut self, torrent_id: InfoHash, remove_data: bool);
 
     #[rpc_method]
-    pub async fn remove_torrents(&mut self, torrent_ids: &[&InfoHash], remove_data: bool);
+    pub async fn remove_torrents(&mut self, torrent_ids: &[InfoHash], remove_data: bool);
 
     #[rpc_method]
-    pub async fn rename_files(&mut self, torrent_id: &InfoHash, filenames: &[(u64, &str)]);
+    pub async fn rename_files(&mut self, torrent_id: InfoHash, filenames: &[(u64, &str)]);
 
     #[rpc_method]
-    pub async fn rename_folder(&mut self, torrent_id: &InfoHash, folder: &str, new_folder: &str);
+    pub async fn rename_folder(&mut self, torrent_id: InfoHash, folder: &str, new_folder: &str);
 
     #[rpc_method]
     pub async fn rescan_plugins(&mut self);
@@ -431,16 +431,16 @@ impl Session {
     pub async fn resume_libtorrent_session(&mut self);
 
     #[rpc_method]
-    pub async fn resume_torrent(&mut self, torrent_id: &InfoHash);
+    pub async fn resume_torrent(&mut self, torrent_id: InfoHash);
 
     #[rpc_method]
-    pub async fn resume_torrents(&mut self, torrent_ids: &[&InfoHash]);
+    pub async fn resume_torrents(&mut self, torrent_ids: &[InfoHash]);
 
     #[rpc_method]
     pub async fn set_config(&mut self, config: Dict);
 
     #[rpc_method]
-    pub async fn set_torrent_options(&mut self, torrent_ids: &[&InfoHash], options: &TorrentOptions);
+    pub async fn set_torrent_options(&mut self, torrent_ids: &[InfoHash], options: &TorrentOptions);
 
     #[rpc_method]
     pub async fn test_listen_port(&mut self) -> bool;
@@ -473,7 +473,7 @@ impl Session {
     pub async fn set_label_options(&mut self, label_id: &str, options: Dict);
 
     #[rpc_method(class="label", method="set_torrent")]
-    pub async fn set_torrent_label(&mut self, torrent_id: &InfoHash, label_id: &str);
+    pub async fn set_torrent_label(&mut self, torrent_id: InfoHash, label_id: &str);
 
     #[rpc_method(class="label", method="get_config")]
     pub async fn get_label_config(&mut self) -> Dict;
