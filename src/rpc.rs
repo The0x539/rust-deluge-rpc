@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use serde_json::{self, Value};
+use serde_yaml::{self, Value};
 use serde::de;
 
 // NOTE: the server should receive a (serialized) list of these, not one
@@ -25,7 +25,7 @@ pub struct Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         /*
-        use serde_json::to_string_pretty;
+        use serde_yaml::to_string_pretty;
         let args = self.args
             .iter()
             .map(|v|to_string_pretty(v).unwrap());
@@ -55,8 +55,8 @@ pub enum Inbound {
 }
 
 impl Inbound {
-    pub fn from(data: &[Value]) -> serde_json::Result<Self> {
-        use serde_json::from_value;
+    pub fn from(data: &[Value]) -> serde_yaml::Result<Self> {
+        use serde_yaml::from_value;
         let msg_type: i64 = from_value(data[0].clone())?;
         let val = match msg_type {
             RPC_RESPONSE | RPC_ERROR => Inbound::Response {

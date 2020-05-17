@@ -1,6 +1,6 @@
 use deluge_macro::*;
 
-use serde_json::Value;
+use serde_yaml::Value;
 use serde::{Serialize, Deserialize};
 
 use crate::encoding;
@@ -167,7 +167,7 @@ macro_rules! dict {
             use maplit::hashmap;
             maplit::convert_args!(
                 keys=String::from,
-                values=serde_json::Value::from,
+                values=serde_yaml::Value::from,
                 hashmap!($($key => $val),*)
             )
         }
@@ -183,7 +183,7 @@ macro_rules! build_request {
     ) => {
         $crate::rpc::Request {
             method: $method,
-            args: vec![$($(serde_json::json!($arg)),*)?],
+            args: vec![$($(serde_yaml::to_value($arg).unwrap()),*)?],
             kwargs: dict!{$($($kw => $kwarg),*)?}
         }
     };

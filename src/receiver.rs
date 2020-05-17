@@ -1,4 +1,4 @@
-use serde_json::Value;
+use serde_yaml::Value;
 use std::collections::HashMap;
 
 use crate::encoding;
@@ -49,7 +49,7 @@ impl MessageReceiver {
 
         // Decode message body
         let val: Value = encoding::decode(&buf).unwrap();
-        let data = val.as_array().ok_or(Error::expected("a list", val.clone()))?;
+        let data = val.as_sequence().ok_or(Error::expected("a list", val.clone()))?;
 
         // Interpret unstructured data according to RPC API
         rpc::Inbound::from(data).map_err(|_| Error::expected("a valid RPC message", data.as_slice()))

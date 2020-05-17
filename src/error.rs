@@ -1,4 +1,4 @@
-use serde_json::Value;
+use serde_yaml::Value;
 use crate::rpc;
 use tokio::prelude::*;
 
@@ -28,7 +28,7 @@ impl std::fmt::Debug for Error {
         match self {
             Self::Network(e) => e.fmt(f),
             Self::Rpc(e) => e.fmt(f),
-            Self::BadResponse(s, v) => write!(f, "Expected {}, got {}", s, serde_json::to_string(v).unwrap()),
+            Self::BadResponse(s, v) => write!(f, "Expected {}, got {}", s, serde_yaml::to_string(v).unwrap()),
             Self::ChannelClosed(s) => write!(f, "Unexpected closure of {} channel", s),
         }
     }
