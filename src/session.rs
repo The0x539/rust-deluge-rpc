@@ -13,7 +13,6 @@ use tokio_rustls::{TlsConnector, webpki, client::TlsStream};
 use tokio::net::TcpStream;
 
 use std::sync::Arc;
-use std::iter::FromIterator;
 use std::convert::TryFrom;
 use std::collections::HashMap;
 
@@ -275,7 +274,7 @@ impl Session {
     }
 
     #[rpc_method(class="daemon")]
-    pub async fn get_method_list(&mut self) -> [String];
+    pub async fn get_method_list(&mut self) -> Vec<String>;
 
     #[rpc_method]
     pub async fn add_torrent_file(&mut self, filename: &str, filedump: &str, options: &TorrentOptions) -> Option<InfoHash>;
@@ -338,20 +337,20 @@ impl Session {
     pub async fn get_config_values(&mut self, keys: &[&str]) -> Dict;
 
     #[rpc_method]
-    pub async fn get_enabled_plugins(&mut self) -> [String];
+    pub async fn get_enabled_plugins(&mut self) -> Vec<String>;
 
     // TODO: guarantee to the client that the IP is valid
     #[rpc_method]
     pub async fn get_external_ip(&mut self) -> String;
 
     #[rpc_method]
-    pub async fn get_filter_tree(&mut self, show_zero_hits: bool, hide_cat: &[&str]) -> Map<String, Vec<(String, u64)>>;
+    pub async fn get_filter_tree(&mut self, show_zero_hits: bool, hide_cat: &[&str]) -> HashMap<String, Vec<(String, u64)>>;
 
     #[rpc_method]
     pub async fn get_free_space(&mut self, path: Option<&str>) -> u64;
 
     #[rpc_method(auth_level="Admin")]
-    pub async fn get_known_accounts(&mut self) -> [Dict];
+    pub async fn get_known_accounts(&mut self) -> Vec<Dict>;
 
     #[rpc_method]
     pub async fn get_libtorrent_version(&mut self) -> String;
@@ -368,19 +367,19 @@ impl Session {
     pub async fn get_proxy(&mut self) -> Dict;
 
     #[rpc_method]
-    pub async fn get_session_state(&mut self) -> [InfoHash];
+    pub async fn get_session_state(&mut self) -> Vec<InfoHash>;
 
     #[rpc_method]
-    pub async fn get_session_status(&mut self, keys: &[&str]) -> Map<String, Value>;
+    pub async fn get_session_status(&mut self, keys: &[&str]) -> HashMap<String, Value>;
 
     #[rpc_method]
     pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &InfoHash) -> T;
 
     #[rpc_method]
-    pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<Dict>) -> Map<InfoHash, T>;
+    pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<Dict>) -> HashMap<InfoHash, T>;
 
     #[rpc_method]
-    pub async fn glob(&mut self, path: &str) -> [String];
+    pub async fn glob(&mut self, path: &str) -> Vec<String>;
 
     #[rpc_method(method="is_session_paused")]
     pub async fn is_libtorrent_session_paused(&mut self) -> bool;
@@ -461,7 +460,7 @@ impl Session {
     pub async fn authorized_call(&mut self, rpc: &str) -> bool;
 
     #[rpc_method(class="label")]
-    pub async fn get_labels(&mut self) -> [String];
+    pub async fn get_labels(&mut self) -> Vec<String>;
 
     #[rpc_method(class="label", method="add")]
     pub async fn add_label(&mut self, label_id: &str);
