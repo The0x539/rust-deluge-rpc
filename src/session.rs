@@ -26,8 +26,52 @@ type WriteStream = io::WriteHalf<TlsStream<TcpStream>>;
 type RequestTuple = (i64, &'static str, List, Dict);
 type RpcSender = oneshot::Sender<rpc::Result<List>>;
 
-// TODO: Be more rigorous about what an infohash is
-pub type InfoHash = String;
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct InfoHash([u8; 20]);
+
+impl InfoHash {
+    pub fn from_hex(hex_str: &str) -> Option<Self> {
+        if hex_str.len() != 40 {
+            println!("len = {}", hex_str.len());
+            return None;
+        }
+
+        let bytes_vec = match hex::decode(hex_str) {
+            Ok(x) => x,
+            Err(e) => {
+                println!("{:?}", e);
+                return None;
+            },
+        };
+
+        let mut final_array = [0; 20];
+        final_array.copy_from_slice(&bytes_vec);
+
+        Some(Self(final_array))
+    }
+
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.0)
+    }
+}
+
+impl std::fmt::Display for InfoHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str(&self.to_hex())
+    }
+}
+
+impl std::fmt::Debug for InfoHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
+    }
+}
+
+impl Serialize for InfoHash {
+    fn serialize<S: Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_hex())
+    }
+}
 
 pub struct Session {
     stream: WriteStream,
@@ -255,7 +299,7 @@ impl Session {
     pub async fn get_session_state(&mut self) -> [InfoHash];
 
     #[rpc_method(class="core", auth_level=5)]
-    pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &str) -> T;
+    pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: &InfoHash) -> T;
 
     #[rpc_method(class="core", auth_level=5)]
     pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<Dict>) -> Map<InfoHash, T>;

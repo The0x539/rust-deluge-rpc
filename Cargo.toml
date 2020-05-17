@@ -17,6 +17,7 @@ rustls = { version = "0.17.0", features = ["dangerous_configuration"] }
 libflate = "0.1.27"
 base64 = "0.12.1"
 deluge-macro = { path = "./experiment/deluge-macro" }
+hex = "0.4.2"
 
 [patch.crates-io]
 webpki = { path = "./experiment/webpki" }
