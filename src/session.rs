@@ -11,7 +11,6 @@ use tokio_rustls::{TlsConnector, webpki};
 
 use crate::encoding;
 use crate::receiver::MessageReceiver;
-use crate::error::{Error, Result};
 use crate::wtf;
 use crate::types::*;
 use deluge_rpc_macro::rpc_method;

@@ -1,7 +1,6 @@
 mod encoding;
 mod rpc;
 mod session;
-mod error;
 mod receiver;
 mod wtf;
 mod types;

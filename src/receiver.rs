@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::encoding;
 use crate::rpc;
-use crate::error::{Error, Result};
+use crate::types::*;
 
 use tokio_rustls::client::TlsStream;
 use tokio::net::TcpStream;
