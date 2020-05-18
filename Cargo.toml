@@ -1,10 +1,11 @@
 [package]
 name = "deluge-rpc"
-version = "0.0.1"
+version = "0.1.0"
 authors = ["The0x539 <the0x539@gmail.com>"]
 edition = "2018"
 license = "GPL-3.0-only"
 description = "Client bindings for the Deluge RPC API."
+repository = "https://github.com/The0x539/rust-deluge-rpc"
 
 [dependencies]
 serde = { version = "1.0.106", features = ["derive"] }
