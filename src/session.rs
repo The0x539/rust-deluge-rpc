@@ -22,8 +22,29 @@ pub struct Session {
     auth_level: AuthLevel,
 }
 
-#[allow(dead_code)]
 impl Session {
+    pub async fn new(endpoint: impl tokio::net::ToSocketAddrs) -> Result<Self> {
+        let mut tls_config = rustls::ClientConfig::new();
+        tls_config.dangerous().set_certificate_verifier(Arc::new(wtf::NoCertificateVerification));
+        let tls_connector = TlsConnector::from(Arc::new(tls_config));
+
+        let tcp_stream = TcpStream::connect(endpoint).await?;
+        let stupid_dns_ref = webpki::DNSNameRef::try_from_ascii_str("foo").unwrap();
+        let stream = tls_connector.connect(stupid_dns_ref, tcp_stream).await?;
+
+        let (reader, writer) = io::split(stream);
+        let (request_send, request_recv) = mpsc::channel(100);
+
+        MessageReceiver::spawn(reader, request_recv);
+
+        Ok(Self { stream: writer, cur_req_id: 0, listeners: request_send, auth_level: AuthLevel::default() })
+    }
+
+    pub async fn close(mut self) -> Result<()> {
+        self.stream.shutdown().await?;
+        Ok(())
+    }
+
     async fn send(&mut self, req: RequestTuple) -> Result<()> {
         let body = encoding::encode(&[req]).unwrap();
         self.stream.write_u8(1).await?;
@@ -51,23 +72,6 @@ impl Session {
             Ok(Err(e)) => Err(Error::Rpc(e)), // RPC error
             Err(_) => Err(Error::ChannelClosed("rpc response")), // Channel error
         }
-    }
-
-    pub async fn new(endpoint: impl tokio::net::ToSocketAddrs) -> Result<Self> {
-        let mut tls_config = rustls::ClientConfig::new();
-        tls_config.dangerous().set_certificate_verifier(Arc::new(wtf::NoCertificateVerification));
-        let tls_connector = TlsConnector::from(Arc::new(tls_config));
-
-        let tcp_stream = TcpStream::connect(endpoint).await?;
-        let stupid_dns_ref = webpki::DNSNameRef::try_from_ascii_str("foo").unwrap();
-        let stream = tls_connector.connect(stupid_dns_ref, tcp_stream).await?;
-
-        let (reader, writer) = io::split(stream);
-        let (request_send, request_recv) = mpsc::channel(100);
-
-        MessageReceiver::spawn(reader, request_recv);
-
-        Ok(Self { stream: writer, cur_req_id: 0, listeners: request_send, auth_level: AuthLevel::default() })
     }
 
     #[rpc_method(class="daemon", method="info", auth_level="Nobody")]
@@ -299,9 +303,4 @@ impl Session {
 
     #[rpc_method(class="label", method="set_config")]
     pub async fn set_label_config(&mut self, config: Dict);
-
-    pub async fn close(mut self) -> Result<()> {
-        self.stream.shutdown().await?;
-        Ok(())
-    }
 }
