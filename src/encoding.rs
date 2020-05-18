@@ -1,7 +1,6 @@
 use libflate::zlib;
 use serde::{Serialize, de::DeserializeOwned};
-
-mod rencode;
+use rencode;
 
 pub fn decode<T: DeserializeOwned>(input: &[u8]) -> rencode::Result<T> {
     rencode::from_reader(zlib::Decoder::new(input).unwrap())
