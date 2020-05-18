@@ -78,6 +78,12 @@ impl Default for FilePriority { fn default() -> Self { Self::Normal } }
 pub enum AuthLevel { Nobody = 0, ReadOnly = 1, Normal = 5, Admin = 10 }
 impl Default for AuthLevel { fn default() -> Self { Self::Normal } }
 
+#[value_enum(&str)]
+pub enum TorrentState {
+    Checking, Downloading, Seeding, Allocating,
+    Error, Moving, Queued, Paused,
+}
+
 #[option_struct]
 #[derive(Clone, Default)]
 pub struct TorrentOptions {

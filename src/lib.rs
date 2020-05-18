@@ -8,7 +8,7 @@ mod types;
 pub use types::{
     List, Dict,
     IpAddr, SocketAddr,
-    InfoHash, FilePriority, AuthLevel, TorrentOptions,
+    InfoHash, FilePriority, AuthLevel, TorrentOptions, TorrentState,
     Query,
     Error, Result,
 };
