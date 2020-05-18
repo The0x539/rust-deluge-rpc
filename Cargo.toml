@@ -1,22 +1,23 @@
 [package]
-name = "dtui"
-version = "0.1.0"
+name = "deluge-rpc"
+version = "0.0.1"
 authors = ["The0x539 <the0x539@gmail.com>"]
 edition = "2018"
+license = "GPL-3.0-only"
+description = "Client bindings for the Deluge RPC API."
 
 [dependencies]
 byteorder = "1.3.4"
-#cursive = "0.14.0"
 serde = { version = "1.0.106", features = ["derive"] }
 serde_yaml = "0.8.12"
 tokio = { version = "0.2", features = ["full"] }
-#webpki-roots = "0.19.0"
 tokio-rustls = "0.13.0"
 rustls = { version = "0.17.0", features = ["dangerous_configuration"] }
 libflate = "0.1.27"
 base64 = "0.12.1"
-deluge-macro = { path = "./experiment/deluge-macro" }
+deluge-rpc-macro = "0.1.0"
 hex = "0.4.2"
+uriparse = "0.6.1"
 
 [patch.crates-io]
 webpki = { path = "./experiment/webpki" }

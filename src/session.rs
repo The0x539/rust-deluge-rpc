@@ -1,4 +1,4 @@
-use deluge_macro::*;
+use deluge_rpc_macro::*;
 
 use serde_yaml::Value;
 use serde::{Serialize, Deserialize};
@@ -160,9 +160,6 @@ impl Session {
 
     pub async fn new(endpoint: impl tokio::net::ToSocketAddrs) -> Result<Self> {
         let mut tls_config = rustls::ClientConfig::new();
-        //let server_pem_file = File::open("/home/the0x539/misc_software/dtui/experiment/certs/server.pem").unwrap();
-        //tls_config.root_store.add_pem_file(&mut BufReader::new(pem_file)).unwrap();
-        //tls_config.root_store.add_server_trust_anchors(&webpki_roots::TLS_SERVER_ROOTS);
         tls_config.dangerous().set_certificate_verifier(Arc::new(wtf::NoCertificateVerification));
         let tls_connector = TlsConnector::from(Arc::new(tls_config));
 
