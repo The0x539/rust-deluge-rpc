@@ -16,6 +16,7 @@ use deluge_rpc_macro::*;
 pub type List = Vec<Value>;
 pub type Dict = HashMap<String, Value>;
 
+pub type ReadStream = io::ReadHalf<TlsStream<TcpStream>>;
 pub type WriteStream = io::WriteHalf<TlsStream<TcpStream>>;
 pub type RequestTuple = (i64, &'static str, List, Dict);
 pub type RpcSender = oneshot::Sender<rpc::Result<List>>;

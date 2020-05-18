@@ -1,19 +1,13 @@
 use serde_yaml::Value;
+
 use std::collections::HashMap;
 
 use crate::encoding;
 use crate::rpc;
 use crate::types::*;
 
-use tokio_rustls::client::TlsStream;
-use tokio::net::TcpStream;
-
 use tokio::prelude::*;
-use tokio::sync::{oneshot, mpsc};
-use tokio::io::ReadHalf;
-
-type ReadStream = ReadHalf<TlsStream<TcpStream>>;
-type RpcSender = oneshot::Sender<rpc::Result<Vec<Value>>>;
+use tokio::sync::mpsc;
 
 pub struct MessageReceiver {
     stream: ReadStream,
