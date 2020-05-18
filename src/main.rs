@@ -4,8 +4,12 @@ mod session;
 mod error;
 mod receiver;
 mod wtf;
-use session::*;
+mod types;
+
 use deluge_rpc_macro::*;
+
+use types::*;
+use session::Session;
 
 fn read_file(path: &'static str) -> String {
     std::fs::read_to_string(path).unwrap()
