@@ -196,9 +196,8 @@ impl Session {
     #[rpc_method]
     pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: InfoHash) -> T;
 
-    // TODO: represent diffs better?
     #[rpc_method(method="get_torrent_status", diff=true)]
-    pub async fn get_torrent_status_diff<T: Query>(&mut self, torrent_id: InfoHash) -> Dict;
+    pub async fn get_torrent_status_diff<T: Query>(&mut self, torrent_id: InfoHash) -> T::Diff;
 
     #[rpc_method(method="get_torrent_status")]
     pub async fn get_torrent_status_dyn(&mut self, torrent_id: InfoHash, keys: &[&str], diff: bool) -> Dict;
@@ -207,7 +206,7 @@ impl Session {
     pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<Dict>) -> HashMap<InfoHash, T>;
 
     #[rpc_method(method="get_torrents_status", diff=true)]
-    pub async fn get_torrents_status_diff<T: Query>(&mut self, filter_dict: Option<Dict>) -> HashMap<InfoHash, Dict>;
+    pub async fn get_torrents_status_diff<T: Query>(&mut self, filter_dict: Option<Dict>) -> HashMap<InfoHash, T::Diff>;
 
     #[rpc_method(method="get_torrents_status")]
     pub async fn get_torrents_status_dyn(&mut self, filter_dict: Option<Dict>, keys: &[&str], diff: bool) -> HashMap<InfoHash, Dict>;

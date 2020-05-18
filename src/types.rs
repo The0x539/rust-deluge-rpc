@@ -3,7 +3,7 @@ use std::collections::HashMap;
 pub use std::net::{IpAddr, SocketAddr};
 
 use serde_yaml::Value;
-use serde::{Serialize, Deserialize};
+use serde::{Serialize, Deserialize, de::DeserializeOwned};
 
 use tokio::prelude::*;
 use tokio::sync::oneshot;
@@ -111,8 +111,10 @@ pub struct TorrentOptions {
     pub super_seeding: bool,
 }
 
-pub trait Query: for<'de> Deserialize<'de> {
+pub trait Query: DeserializeOwned {
+    type Diff: DeserializeOwned + Default + Eq;
     fn keys() -> &'static [&'static str];
+    fn update(&mut self, diff: Self::Diff) -> bool;
 }
 
 // TODO: Incorporate serde errors
