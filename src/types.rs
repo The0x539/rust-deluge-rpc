@@ -28,16 +28,12 @@ pub struct InfoHash([u8; 20]);
 impl InfoHash {
     pub fn from_hex(hex_str: &str) -> Option<Self> {
         if hex_str.len() != 40 {
-            println!("len = {}", hex_str.len());
             return None;
         }
 
         let bytes_vec = match hex::decode(hex_str) {
             Ok(x) => x,
-            Err(e) => {
-                println!("{:?}", e);
-                return None;
-            },
+            Err(_) => return None,
         };
 
         let mut final_array = [0; 20];
