@@ -8,10 +8,10 @@ const RPC_EVENT: i64 = 3;
 
 #[derive(Debug)]
 pub struct Error {
-    exception: String,
-    args: Vec<Value>,
-    kwargs: HashMap<String, Value>,
-    traceback: String,
+    pub exception: String,
+    pub args: Vec<Value>,
+    pub kwargs: HashMap<String, Value>,
+    pub traceback: String,
 }
 
 impl std::fmt::Display for Error {
