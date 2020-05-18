@@ -10,5 +10,6 @@ pub use types::{
     IpAddr, SocketAddr,
     InfoHash, FilePriority, AuthLevel, TorrentOptions,
     Query,
+    Error, Result,
 };
 pub use session::Session;
