@@ -112,7 +112,7 @@ pub struct TorrentOptions {
 }
 
 pub trait Query: DeserializeOwned {
-    type Diff: DeserializeOwned + Default + Eq;
+    type Diff: DeserializeOwned + Default + PartialEq;
     fn keys() -> &'static [&'static str];
     fn update(&mut self, diff: Self::Diff) -> bool;
 }
