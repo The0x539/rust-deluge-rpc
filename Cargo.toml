@@ -1,6 +1,6 @@
 [package]
 name = "deluge-rpc"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["The0x539 <the0x539@gmail.com>"]
 edition = "2018"
 license = "GPL-3.0-only"
@@ -14,6 +14,6 @@ tokio = { version = "0.2", features = ["full"] }
 tokio-rustls = "0.13.0"
 rustls = { version = "0.17.0", features = ["dangerous_configuration"] }
 libflate = "0.1.27"
-deluge-rpc-macro = "0.2.0"
+deluge-rpc-macro = "0.2.1"
 hex = "0.4.2"
 rencode = "0.1.0"
