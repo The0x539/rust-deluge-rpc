@@ -1,29 +1,32 @@
-use std::collections::HashMap;
 use serde_yaml::{self, Value};
-use serde::de;
+use serde::Deserialize;
 use std::convert::{From, TryFrom};
-use crate::types::InfoHash;
+use crate::types::{InfoHash, List, Dict};
 use lazy_static::lazy_static;
 use lazy_regex::regex;
 use std::fmt;
-
-const RPC_RESPONSE: i64 = 1;
-const RPC_ERROR: i64 = 2;
-const RPC_EVENT: i64 = 3;
+use deluge_rpc_macro::value_enum;
 
 // TODO: even a single specialized error type is a lot of code, so move errors to separate module
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Deserialize)]
+#[serde(from = "(String, List, Dict, String)")]
 pub struct GenericError {
     pub exception: String,
-    pub args: Vec<Value>,
-    pub kwargs: HashMap<String, Value>,
+    pub args: List,
+    pub kwargs: Dict,
     pub traceback: String,
 }
 
 impl fmt::Display for GenericError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&self.traceback)
+    }
+}
+
+impl From<(String, List, Dict, String)> for GenericError {
+    fn from((exception, args, kwargs, traceback): (String, List, Dict, String)) -> Self {
+        Self { exception, args, kwargs, traceback }
     }
 }
 
@@ -106,40 +109,31 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub enum Inbound {
-    Response { request_id: i64, result: Result<Vec<Value>> },
-    Event { event_name: String, data: Vec<Value> },
+    Response { request_id: i64, result: Result<List> },
+    Event { event_name: String, data: List },
 }
+
+#[value_enum(u8)]
+enum MessageType { Response = 1, Error = 2, Event = 3 }
 
 impl TryFrom<&[Value]> for Inbound {
     type Error = serde_yaml::Error;
 
     fn try_from(data: &[Value]) -> serde_yaml::Result<Self> {
         use serde_yaml::from_value;
-        let msg_type: i64 = from_value(data[0].clone())?;
+        let msg_type = from_value(data[0].clone())?;
         let val = match msg_type {
-            RPC_RESPONSE | RPC_ERROR => Inbound::Response {
+            MessageType::Response | MessageType::Error => Inbound::Response {
                 request_id: from_value(data[1].clone())?,
                 result: match msg_type {
-                    RPC_RESPONSE => Ok(from_value(data[2].clone()).unwrap_or(vec![data[2].clone()])),
-                    RPC_ERROR => {
-                        Err(Error {
-                            exception: from_value(data[2].clone())?,
-                            args: from_value(data[3].clone())?,
-                            kwargs: from_value(data[4].clone())?,
-                            traceback: from_value(data[5].clone())?,
-                        })
-                    },
+                    MessageType::Response => Ok(from_value(data[2].clone()).unwrap_or(vec![data[2].clone()])),
+                    MessageType::Error => Err(from_value(Value::Sequence(data[2..=5].to_vec()))?),
                     _ => unreachable!(),
                 },
             },
-            RPC_EVENT => Inbound::Event {
+            MessageType::Event => Inbound::Event {
                 event_name: from_value(data[1].clone())?,
                 data: from_value(data[2].clone())?,
-            },
-            _ => {
-                let unexp = de::Unexpected::Signed(msg_type);
-                let exp = &"a known message type (1, 2, or 3)";
-                return Err(de::Error::invalid_value(unexp, exp));
             },
         };
         Ok(val)
