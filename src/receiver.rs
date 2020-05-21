@@ -40,11 +40,9 @@ impl MessageReceiver {
         self.stream.read_exact(&mut buf).await?;
 
         // Decode (decompress+deserialize) message body
-        encoding::decode(&buf)
-            // TODO: revise crate::types::Error semantics
-            // Errors here should all be some form of serde error, which is cool
-            // This is also the last remaining use of crate::types::Error::expected. Awesome.
-            .map_err(|_| Error::expected("a valid RPC message", buf))
+        let message = encoding::decode(&buf)?;
+
+        Ok(message)
     }
 
     async fn update_listeners(&mut self) -> Result<()> {
