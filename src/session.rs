@@ -1,4 +1,4 @@
-use serde::de::DeserializeOwned;
+use serde::{Serialize, de::DeserializeOwned};
 use serde_yaml::Value;
 
 use std::sync::Arc;
@@ -46,7 +46,7 @@ impl Session {
         Ok(())
     }
 
-    async fn send(&mut self, req: RequestTuple) -> Result<()> {
+    async fn send(&mut self, req: impl Serialize) -> Result<()> {
         let body = encoding::encode(&[req]).unwrap();
         self.stream.write_u8(1).await?;
         self.stream.write_u32(body.len() as u32).await?;
@@ -55,15 +55,15 @@ impl Session {
         Ok(())
     }
 
-    async fn request<T: DeserializeOwned>(
+    async fn request<T: DeserializeOwned, U: Serialize, V: Serialize>(
         &mut self,
         method: &'static str,
-        args: List,
-        kwargs: Dict
+        args: U,
+        kwargs: V,
     ) -> Result<T> {
         let id = self.cur_req_id;
         self.cur_req_id += 1;
-        let request: RequestTuple = (id, method, args, kwargs);
+        let request = (id, method, args, kwargs);
 
         let (sender, receiver) = oneshot::channel();
         self.listeners.send((id, sender))
@@ -208,23 +208,27 @@ impl Session {
     #[rpc_method]
     pub async fn get_session_status(&mut self, keys: &[&str]) -> HashMap<String, Value>;
 
-    #[rpc_method]
-    pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: InfoHash) -> T;
-
-    #[rpc_method(method="get_torrent_status", diff=true)]
-    pub async fn get_torrent_status_diff<T: Query>(&mut self, torrent_id: InfoHash) -> T::Diff;
-
     #[rpc_method(method="get_torrent_status")]
-    pub async fn get_torrent_status_dyn(&mut self, torrent_id: InfoHash, keys: &[&str], diff: bool) -> Dict;
+    pub async fn get_torrent_status_dyn<T: DeserializeOwned>(&mut self, torrent_id: InfoHash, keys: &[&str], diff: bool) -> T;
 
-    #[rpc_method]
-    pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<Dict>) -> HashMap<InfoHash, T>;
+    pub async fn get_torrent_status<T: Query>(&mut self, torrent_id: InfoHash) -> Result<T> {
+        self.get_torrent_status_dyn(torrent_id, T::keys(), false).await
+    }
 
-    #[rpc_method(method="get_torrents_status", diff=true)]
-    pub async fn get_torrents_status_diff<T: Query>(&mut self, filter_dict: Option<Dict>) -> HashMap<InfoHash, T::Diff>;
+    pub async fn get_torrent_status_diff<T: Query>(&mut self, torrent_id: InfoHash) -> Result<T::Diff> {
+        self.get_torrent_status_dyn(torrent_id, T::keys(), true).await
+    }
 
     #[rpc_method(method="get_torrents_status")]
-    pub async fn get_torrents_status_dyn(&mut self, filter_dict: Option<Dict>, keys: &[&str], diff: bool) -> HashMap<InfoHash, Dict>;
+    pub async fn get_torrents_status_dyn<T: DeserializeOwned, U: Serialize>(&mut self, filter_dict: Option<HashMap<String, U>>, keys: &[&str], diff: bool) -> HashMap<InfoHash, T>;
+
+    pub async fn get_torrents_status<T: Query, U: Serialize>(&mut self, filter_dict: Option<HashMap<String, U>>) -> Result<HashMap<InfoHash, T>> {
+        self.get_torrents_status_dyn(filter_dict, T::keys(), false).await
+    }
+
+    pub async fn get_torrents_status_diff<T: Query, U: Serialize>(&mut self, filter_dict: Option<HashMap<String, U>>) -> Result<HashMap<InfoHash, T::Diff>> {
+        self.get_torrents_status_dyn(filter_dict, T::keys(), true).await
+    }
 
     #[rpc_method]
     pub async fn glob(&mut self, path: &str) -> Vec<String>;
