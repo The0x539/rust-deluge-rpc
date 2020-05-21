@@ -1,7 +1,4 @@
-use serde_yaml::Value;
-
 use std::collections::HashMap;
-use std::convert::TryFrom;
 
 use crate::encoding;
 use crate::rpc;
@@ -42,12 +39,12 @@ impl MessageReceiver {
         let mut buf = vec![0; len as usize];
         self.stream.read_exact(&mut buf).await?;
 
-        // Decode message body
-        let val: Value = encoding::decode(&buf).unwrap();
-        let data = val.as_sequence().ok_or(Error::expected("a list", val.clone()))?;
-
-        // Interpret unstructured data according to RPC API
-        rpc::Inbound::try_from(data.as_slice()).map_err(|_| Error::expected("a valid RPC message", data.as_slice()))
+        // Decode (decompress+deserialize) message body
+        encoding::decode(&buf)
+            // TODO: revise crate::types::Error semantics
+            // Errors here should all be some form of serde error, which is cool
+            // This is also the last remaining use of crate::types::Error::expected. Awesome.
+            .map_err(|_| Error::expected("a valid RPC message", buf))
     }
 
     async fn update_listeners(&mut self) -> Result<()> {

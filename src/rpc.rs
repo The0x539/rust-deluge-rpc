@@ -105,7 +105,8 @@ impl From<GenericError> for SpecializedError {
 pub type Error = SpecializedError;
 pub type Result<T> = std::result::Result<T, SpecializedError>;
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
+#[serde(try_from="List")]
 pub enum Inbound {
     Response { request_id: i64, result: Result<List> },
     Event { event_name: String, data: List },
@@ -114,24 +115,28 @@ pub enum Inbound {
 #[value_enum(u8)]
 enum MessageType { Response = 1, Error = 2, Event = 3 }
 
-impl TryFrom<&[Value]> for Inbound {
+impl TryFrom<List> for Inbound {
     type Error = serde_yaml::Error;
 
-    fn try_from(data: &[Value]) -> serde_yaml::Result<Self> {
+    fn try_from(data: List) -> serde_yaml::Result<Self> {
         use serde_yaml::from_value;
-        let msg_type = from_value(data[0].clone())?;
+        let mut data = data.into_iter();
+        let msg_type = from_value(data.next().unwrap())?;
         let val = match msg_type {
             MessageType::Response => Inbound::Response {
-                request_id: from_value(data[1].clone())?,
-                result: Ok(from_value(data[2].clone()).unwrap_or(vec![data[2].clone()])),
+                request_id: from_value(data.next().unwrap())?,
+                result: Ok(match data.next().unwrap() {
+                    Value::Sequence(x) => x,
+                    x => vec![x],
+                }),
             },
             MessageType::Error => Inbound::Response {
-                request_id: from_value(data[1].clone())?,
-                result: Err(from_value(Value::Sequence(data[2..=5].to_vec()))?),
+                request_id: from_value(data.next().unwrap())?,
+                result: Err(from_value(Value::Sequence(data.collect()))?),
             },
             MessageType::Event => Inbound::Event {
-                event_name: from_value(data[1].clone())?,
-                data: from_value(data[2].clone())?,
+                event_name: from_value(data.next().unwrap())?,
+                data: from_value(data.next().unwrap())?,
             },
         };
         Ok(val)
