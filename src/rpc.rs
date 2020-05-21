@@ -123,13 +123,13 @@ impl TryFrom<&[Value]> for Inbound {
         use serde_yaml::from_value;
         let msg_type = from_value(data[0].clone())?;
         let val = match msg_type {
-            MessageType::Response | MessageType::Error => Inbound::Response {
+            MessageType::Response => Inbound::Response {
                 request_id: from_value(data[1].clone())?,
-                result: match msg_type {
-                    MessageType::Response => Ok(from_value(data[2].clone()).unwrap_or(vec![data[2].clone()])),
-                    MessageType::Error => Err(from_value(Value::Sequence(data[2..=5].to_vec()))?),
-                    _ => unreachable!(),
-                },
+                result: Ok(from_value(data[2].clone()).unwrap_or(vec![data[2].clone()])),
+            },
+            MessageType::Error => Inbound::Response {
+                request_id: from_value(data[1].clone())?,
+                result: Err(from_value(Value::Sequence(data[2..=5].to_vec()))?),
             },
             MessageType::Event => Inbound::Event {
                 event_name: from_value(data[1].clone())?,
