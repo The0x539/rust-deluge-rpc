@@ -1,6 +1,7 @@
 use serde_yaml::Value;
 
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 use crate::encoding;
 use crate::rpc;
@@ -46,7 +47,7 @@ impl MessageReceiver {
         let data = val.as_sequence().ok_or(Error::expected("a list", val.clone()))?;
 
         // Interpret unstructured data according to RPC API
-        rpc::Inbound::from(data).map_err(|_| Error::expected("a valid RPC message", data.as_slice()))
+        rpc::Inbound::try_from(data.as_slice()).map_err(|_| Error::expected("a valid RPC message", data.as_slice()))
     }
 
     async fn update_listeners(&mut self) -> Result<()> {

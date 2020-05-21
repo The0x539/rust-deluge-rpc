@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use serde_yaml::{self, Value};
 use serde::de;
-use std::convert::{From, TryInto};
+use std::convert::{From, TryFrom};
 use crate::types::InfoHash;
 use lazy_static::lazy_static;
 use lazy_regex::regex;
@@ -110,8 +110,10 @@ pub enum Inbound {
     Event { event_name: String, data: Vec<Value> },
 }
 
-impl Inbound {
-    pub fn from(data: &[Value]) -> serde_yaml::Result<Self> {
+impl TryFrom<&[Value]> for Inbound {
+    type Error = serde_yaml::Error;
+
+    fn try_from(data: &[Value]) -> serde_yaml::Result<Self> {
         use serde_yaml::from_value;
         let msg_type: i64 = from_value(data[0].clone())?;
         let val = match msg_type {
