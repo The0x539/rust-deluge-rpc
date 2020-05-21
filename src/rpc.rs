@@ -30,10 +30,6 @@ impl From<(String, List, Dict, String)> for GenericError {
     }
 }
 
-impl std::error::Error for GenericError {}
-
-pub type Error = GenericError;
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum AddTorrentError {
     AlreadyInSession(InfoHash),
@@ -81,7 +77,8 @@ impl From<&str> for AddTorrentError {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Deserialize)]
+#[serde(from="GenericError")]
 pub enum SpecializedError {
     AddTorrent(AddTorrentError),
     Generic(GenericError),
@@ -105,7 +102,8 @@ impl From<GenericError> for SpecializedError {
     }
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Error = SpecializedError;
+pub type Result<T> = std::result::Result<T, SpecializedError>;
 
 #[derive(Debug)]
 pub enum Inbound {
