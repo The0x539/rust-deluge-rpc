@@ -1,3 +1,4 @@
+use serde::de::DeserializeOwned;
 use serde_yaml::Value;
 
 use std::sync::Arc;
@@ -54,7 +55,12 @@ impl Session {
         Ok(())
     }
 
-    async fn request(&mut self, method: &'static str, args: List, kwargs: Dict) -> Result<List> {
+    async fn request<T: DeserializeOwned>(
+        &mut self,
+        method: &'static str,
+        args: List,
+        kwargs: Dict
+    ) -> Result<T> {
         let id = self.cur_req_id;
         self.cur_req_id += 1;
         let request: RequestTuple = (id, method, args, kwargs);
@@ -67,11 +73,20 @@ impl Session {
         self.send(request).await?;
 
         // This is an RPC result inside a oneshot result.
-        match receiver.await {
-            Ok(Ok(r)) => Ok(r), // Success
+        let msg: List = match receiver.await {
+            Ok(Ok(msg)) => Ok(msg), // Success
             Ok(Err(e)) => Err(Error::Rpc(e)), // RPC error
             Err(_) => Err(Error::ChannelClosed("rpc response")), // Channel error
-        }
+        }?;
+
+        // Kinda annoying that serde::de::Error is a trait rather than a struct.
+        // Otherwise, I might go for bincode here.
+        // Would also rather serialize on the receiver thread before sending.
+        // If I can figure that out, I might be able to reduce usage of serde_yaml.
+        // Not that serde_yaml's bad, but it's arbitrarily introducing a format.
+        let val = rencode::from_bytes(rencode::to_bytes(&msg)?.as_slice())?;
+
+        Ok(val)
     }
 
     #[rpc_method(class="daemon", method="info", auth_level="Nobody")]
