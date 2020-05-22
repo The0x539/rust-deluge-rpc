@@ -122,7 +122,7 @@ impl Session {
 
     // TODO: accept guaranteed-valid structs for the URL and HTTP headers
     #[rpc_method]
-    pub async fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<Dict>) -> Option<InfoHash>;
+    pub async fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<HashMap<String, String>>) -> Option<InfoHash>;
 
     #[rpc_method]
     async fn _connect_peer(&mut self, torrent_id: InfoHash, peer_ip: IpAddr, port: u16);
@@ -164,13 +164,14 @@ impl Session {
     pub async fn get_auth_levels_mappings(&mut self) -> (HashMap<String, AuthLevel>, HashMap<AuthLevel, String>);
 
     #[rpc_method]
-    pub async fn get_config(&mut self) -> Dict;
+    pub async fn get_config<T: DeserializeOwned>(&mut self) -> HashMap<String, T>;
 
     #[rpc_method]
-    pub async fn get_config_value(&mut self, key: &str) -> Value;
+    pub async fn get_config_value<T: DeserializeOwned>(&mut self, key: &str) -> T;
 
+    // TODO: ConfigQuery trait and/or ConfigKey enum
     #[rpc_method]
-    pub async fn get_config_values(&mut self, keys: &[&str]) -> Dict;
+    pub async fn get_config_values<T: DeserializeOwned>(&mut self, keys: &[&str]) -> HashMap<String, T>;
 
     #[rpc_method]
     pub async fn get_enabled_plugins(&mut self) -> Vec<String>;
@@ -184,8 +185,9 @@ impl Session {
     #[rpc_method]
     pub async fn get_free_space(&mut self, path: Option<&str>) -> u64;
 
+    // TODO: Account struct
     #[rpc_method(auth_level="Admin")]
-    pub async fn get_known_accounts(&mut self) -> Vec<Dict>;
+    pub async fn get_known_accounts<T: DeserializeOwned>(&mut self) -> Vec<HashMap<String, T>>;
 
     #[rpc_method]
     pub async fn get_libtorrent_version(&mut self) -> String;
@@ -198,14 +200,16 @@ impl Session {
     #[rpc_method]
     pub async fn get_path_size(&mut self, path: &str) -> i64;
 
+    // TODO: Proxy struct (low importance)
     #[rpc_method]
-    pub async fn get_proxy(&mut self) -> Dict;
+    pub async fn get_proxy<T: DeserializeOwned>(&mut self) -> T;
 
     #[rpc_method]
     pub async fn get_session_state(&mut self) -> Vec<InfoHash>;
 
+    // TODO: SessionQuery trait and/or SessionKey enum
     #[rpc_method]
-    pub async fn get_session_status(&mut self, keys: &[&str]) -> HashMap<String, Value>;
+    pub async fn get_session_status<T: DeserializeOwned>(&mut self, keys: &[&str]) -> HashMap<String, T>;
 
     #[rpc_method(method="get_torrent_status")]
     pub async fn get_torrent_status_dyn<T: DeserializeOwned>(&mut self, torrent_id: InfoHash, keys: &[&str], diff: bool) -> T;
@@ -247,8 +251,9 @@ impl Session {
     #[rpc_method]
     pub async fn pause_torrents(&mut self, torrent_ids: &[InfoHash]);
 
+    // TODO: MagnetMetadata struct
     #[rpc_method]
-    pub async fn prefetch_magnet_metadata(&mut self, magnet: &str, timeout: u64) -> (Value, Value);
+    pub async fn prefetch_magnet_metadata<T: DeserializeOwned>(&mut self, magnet: &str, timeout: u64) -> (InfoHash, HashMap<String, T>);
 
     #[rpc_method]
     pub async fn queue_bottom(&mut self, torrent_ids: &[InfoHash]);
@@ -290,7 +295,7 @@ impl Session {
     pub async fn resume_torrents(&mut self, torrent_ids: &[InfoHash]);
 
     #[rpc_method]
-    pub async fn set_config(&mut self, config: Dict);
+    pub async fn set_config(&mut self, config: HashMap<String, impl Serialize>);
 
     #[rpc_method]
     pub async fn set_torrent_options(&mut self, torrent_ids: &[InfoHash], options: &TorrentOptions);
@@ -320,17 +325,17 @@ impl Session {
     pub async fn remove_label(&mut self, label_id: &str);
 
     #[rpc_method(class="label", method="get_options")]
-    pub async fn get_label_options(&mut self, label_id: &str) -> Dict;
+    pub async fn get_label_options<T: DeserializeOwned>(&mut self, label_id: &str) -> HashMap<String, T>;
 
     #[rpc_method(class="label", method="set_options")]
-    pub async fn set_label_options(&mut self, label_id: &str, options: Dict);
+    pub async fn set_label_options(&mut self, label_id: &str, options: HashMap<String, impl Serialize>);
 
     #[rpc_method(class="label", method="set_torrent")]
     pub async fn set_torrent_label(&mut self, torrent_id: InfoHash, label_id: &str);
 
     #[rpc_method(class="label", method="get_config")]
-    pub async fn get_label_config(&mut self) -> Dict;
+    pub async fn get_label_config<T: DeserializeOwned>(&mut self) -> HashMap<String, T>;
 
     #[rpc_method(class="label", method="set_config")]
-    pub async fn set_label_config(&mut self, config: Dict);
+    pub async fn set_label_config(&mut self, config: HashMap<String, impl Serialize>);
 }
