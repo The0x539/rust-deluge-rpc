@@ -7,6 +7,8 @@ mod receiver;
 mod wtf;
 mod types;
 
+pub use deluge_rpc_macro::Query;
+
 pub use types::{
     List, Dict,
     IpAddr, SocketAddr,
