@@ -2,7 +2,6 @@ use std::convert::TryFrom;
 use std::collections::HashMap;
 pub use std::net::{IpAddr, SocketAddr};
 
-use serde_yaml::Value;
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
 
 use tokio::prelude::*;
@@ -13,6 +12,7 @@ use tokio_rustls::client::TlsStream;
 use crate::rpc;
 use deluge_rpc_macro::*;
 
+pub use ron::Value;
 pub type List = Vec<Value>;
 pub type Dict = HashMap<String, Value>;
 

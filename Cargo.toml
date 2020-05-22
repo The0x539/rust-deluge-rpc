@@ -9,7 +9,7 @@ repository = "https://github.com/The0x539/rust-deluge-rpc"
 
 [dependencies]
 serde = { version = "1.0.106", features = ["derive"] }
-serde_yaml = "0.8.12"
+ron = "0.6.0"
 tokio = { version = "0.2", features = ["full"] }
 tokio-rustls = "0.13.0"
 rustls = { version = "0.17.0", features = ["dangerous_configuration"] }

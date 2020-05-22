@@ -1,5 +1,4 @@
 use serde::{Serialize, de::DeserializeOwned};
-use serde_yaml::Value;
 
 use std::sync::Arc;
 use std::collections::HashMap;

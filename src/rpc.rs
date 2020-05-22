@@ -1,7 +1,6 @@
-use serde_yaml::{self, Value};
 use serde::Deserialize;
 use std::convert::{From, TryFrom};
-use crate::types::{InfoHash, List, Dict};
+use crate::types::{InfoHash, Value, List, Dict};
 use lazy_static::lazy_static;
 use lazy_regex::regex;
 use std::fmt;
@@ -116,27 +115,26 @@ pub enum Inbound {
 enum MessageType { Response = 1, Error = 2, Event = 3 }
 
 impl TryFrom<List> for Inbound {
-    type Error = serde_yaml::Error;
+    type Error = ron::Error;
 
-    fn try_from(data: List) -> serde_yaml::Result<Self> {
-        use serde_yaml::from_value;
+    fn try_from(data: List) -> ron::Result<Self> {
         let mut data = data.into_iter();
-        let msg_type = from_value(data.next().unwrap())?;
+        let msg_type = data.next().unwrap().into_rust()?;
         let val = match msg_type {
             MessageType::Response => Inbound::Response {
-                request_id: from_value(data.next().unwrap())?,
+                request_id: data.next().unwrap().into_rust()?,
                 result: Ok(match data.next().unwrap() {
-                    Value::Sequence(x) => x,
+                    Value::Seq(x) => x,
                     x => vec![x],
                 }),
             },
             MessageType::Error => Inbound::Response {
-                request_id: from_value(data.next().unwrap())?,
-                result: Err(from_value(Value::Sequence(data.collect()))?),
+                request_id: data.next().unwrap().into_rust()?,
+                result: Err(Value::Seq(data.collect()).into_rust()?),
             },
             MessageType::Event => Inbound::Event {
-                event_name: from_value(data.next().unwrap())?,
-                data: from_value(data.next().unwrap())?,
+                event_name: data.next().unwrap().into_rust()?,
+                data: data.next().unwrap().into_rust()?,
             },
         };
         Ok(val)
