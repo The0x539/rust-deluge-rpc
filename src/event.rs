@@ -1,9 +1,11 @@
 use serde::Deserialize;
 use crate::types::{InfoHash, Value, List, TorrentState};
 use deluge_rpc_macro::rename_event_enum;
+use enum_kinds::EnumKind;
 
 #[rename_event_enum]
-#[derive(Debug, Clone, Deserialize)]
+#[enum_kind(EventKind)]
+#[derive(Debug, Clone, Deserialize, EnumKind)]
 #[serde(tag = "0", content = "1")]
 pub enum Event {
     TorrentAdded(InfoHash, bool),
