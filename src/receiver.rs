@@ -75,7 +75,7 @@ impl MessageReceiver {
                         .remove(&request_id)
                         .expect(&format!("Received result for nonexistent request #{}", request_id))
                         .send(result)
-                        .expect(&format!("Failed to send result for request with #{}", request_id));
+                        .expect(&format!("Failed to send result for request #{}", request_id));
                 }
                 rpc::Inbound::Event(event) => {
                     self.events
