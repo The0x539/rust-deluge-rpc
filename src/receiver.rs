@@ -5,23 +5,25 @@ use crate::rpc;
 use crate::types::*;
 
 use tokio::prelude::*;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, broadcast};
 
 pub struct MessageReceiver {
     stream: ReadStream,
     listeners: mpsc::Receiver<(i64, RpcSender)>,
+    events: broadcast::Sender<Event>,
     channels: HashMap<i64, RpcSender>,
 }
 
 impl MessageReceiver {
-    pub fn spawn(stream: ReadStream, listeners: mpsc::Receiver<(i64, RpcSender)>) {
-        tokio::spawn(Self::new(stream, listeners).run());
+    pub fn spawn(stream: ReadStream, listeners: mpsc::Receiver<(i64, RpcSender)>, events: broadcast::Sender<Event>) {
+        tokio::spawn(Self::new(stream, listeners, events).run());
     }
 
-    pub fn new(stream: ReadStream, listeners: mpsc::Receiver<(i64, RpcSender)>) -> Self {
+    pub fn new(stream: ReadStream, listeners: mpsc::Receiver<(i64, RpcSender)>, events: broadcast::Sender<Event>) -> Self {
         Self {
             stream,
             listeners,
+            events,
             channels: HashMap::new(),
         }
     }
@@ -76,8 +78,9 @@ impl MessageReceiver {
                         .expect(&format!("Failed to send result for request with #{}", request_id));
                 }
                 rpc::Inbound::Event(event) => {
-                    // TODO: Event handler registration or something
-                    println!("Received event: {:?}", event);
+                    self.events
+                        .send(event)
+                        .expect("Failed to send event");
                 }
             }
         }

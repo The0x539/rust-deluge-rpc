@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 
 use tokio::prelude::*;
-use tokio::sync::{oneshot, mpsc};
+use tokio::sync::{oneshot, mpsc, broadcast};
 use tokio::net::TcpStream;
 use tokio_rustls::{TlsConnector, webpki};
 
@@ -19,6 +19,7 @@ pub struct Session {
     stream: WriteStream,
     cur_req_id: i64,
     listeners: mpsc::Sender<(i64, RpcSender)>,
+    events: broadcast::Sender<Event>, // Only used for .subscribe()
     auth_level: AuthLevel,
 }
 
@@ -34,10 +35,17 @@ impl Session {
 
         let (reader, writer) = io::split(stream);
         let (request_send, request_recv) = mpsc::channel(100);
+        let (event_send, _) = broadcast::channel(100);
 
-        MessageReceiver::spawn(reader, request_recv);
+        MessageReceiver::spawn(reader, request_recv, event_send.clone());
 
-        Ok(Self { stream: writer, cur_req_id: 0, listeners: request_send, auth_level: AuthLevel::default() })
+        Ok(Self {
+            stream: writer,
+            cur_req_id: 0,
+            listeners: request_send,
+            events: event_send,
+            auth_level: AuthLevel::default(),
+        })
     }
 
     pub async fn close(mut self) -> Result<()> {
@@ -88,6 +96,14 @@ impl Session {
         Ok(val)
     }
 
+    // This gives a receiver for all events.
+    // Subscribing to specific kinds of events would be... complicated in every facet.
+    // Such functionality doesn't strike me as incredibly necessary.
+    // For the time being, this isn't a particularly terrible burden to impose on this crate's users.
+    pub fn subscribe_events(&self) -> broadcast::Receiver<Event> {
+        self.events.subscribe()
+    }
+
     #[rpc_method(class="daemon", method="info", auth_level="Nobody")]
     pub async fn daemon_info(&mut self) -> String;
 
@@ -101,6 +117,8 @@ impl Session {
     async fn _set_event_interest(&mut self, events: &[String]) -> bool;
 
     pub async fn set_event_interest(&mut self, events: &HashSet<EventKind>) -> Result<bool> {
+        // TODO: Error variant for incorrect crate usage, like here.
+        assert!(self.events.receiver_count() > 0, "Cannot set event interest without an active receiver handle (try calling .subscribe_events() first)");
         let keys = events
             .iter()
             .map(EventKind::key)
