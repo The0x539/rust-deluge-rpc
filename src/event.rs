@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use crate::types::{InfoHash, Value, TorrentState};
+use crate::types::{InfoHash, Value, List, TorrentState};
 use deluge_rpc_macro::rename_event_enum;
 
 #[rename_event_enum]
@@ -26,4 +26,7 @@ pub enum Event {
     PluginEnabled(String),
     PluginDisabled(String),
     ClientDisconnected(isize),
+
+    #[serde(skip)]
+    Unrecognized(String, List),
 }

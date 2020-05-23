@@ -133,7 +133,13 @@ impl TryFrom<List> for Inbound {
                 request_id: data.next().unwrap().into_rust()?,
                 result: Err(Value::Seq(data.collect()).into_rust()?),
             },
-            MessageType::Event => Inbound::Event(Value::Seq(data.collect()).into_rust()?),
+            MessageType::Event => {
+                let data: List = data.collect();
+                let event = Value::Seq(data.clone())
+                    .into_rust()
+                    .unwrap_or(Event::Unrecognized(data[0].clone().into_rust()?, data[1].clone().into_rust()?));
+                Inbound::Event(event)
+            },
         };
         Ok(val)
     }
