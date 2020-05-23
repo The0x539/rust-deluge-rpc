@@ -1,7 +1,6 @@
 use serde::Deserialize;
 use std::convert::{From, TryFrom};
-use crate::types::{InfoHash, Value, List, Dict};
-use crate::event::Event;
+use crate::types::{InfoHash, Value, List, Dict, Event};
 use lazy_static::lazy_static;
 use lazy_regex::regex;
 use std::fmt;

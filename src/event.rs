@@ -4,7 +4,7 @@ use deluge_rpc_macro::rename_event_enum;
 use enum_kinds::EnumKind;
 
 #[rename_event_enum]
-#[enum_kind(EventKind)]
+#[enum_kind(EventKind, derive(Hash))]
 #[derive(Debug, Clone, Deserialize, EnumKind)]
 #[serde(tag = "0", content = "1")]
 pub enum Event {
@@ -31,4 +31,13 @@ pub enum Event {
 
     #[serde(skip)]
     Unrecognized(String, List),
+}
+
+impl EventKind {
+    // in theory, this could be made to return &'static str,
+    // either using more boilerplate or a more specialized macro.
+    // This code is unlikely to be used other than at startup, though, so whatever.
+    pub fn key(&self) -> String {
+        format!("{:?}Event", self)
+    }
 }

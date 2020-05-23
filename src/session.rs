@@ -1,7 +1,7 @@
 use serde::{Serialize, de::DeserializeOwned};
 
 use std::sync::Arc;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 
 use tokio::prelude::*;
@@ -97,10 +97,16 @@ impl Session {
         Ok(self.auth_level)
     }
 
-    // TODO: make private and add register_event_handler function that takes a channel or closure
-    // (haven't decided which) and possibly an enum
     #[rpc_method(class="daemon")]
-    pub async fn set_event_interest(&mut self, events: &[&str]) -> bool;
+    async fn _set_event_interest(&mut self, events: &[String]) -> bool;
+
+    pub async fn set_event_interest(&mut self, events: &HashSet<EventKind>) -> Result<bool> {
+        let keys = events
+            .iter()
+            .map(EventKind::key)
+            .collect::<Vec<_>>();
+        self._set_event_interest(&keys).await
+    }
 
     #[rpc_method(class="daemon")]
     pub async fn shutdown(mut self) -> () {

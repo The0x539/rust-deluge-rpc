@@ -12,6 +12,8 @@ use tokio_rustls::client::TlsStream;
 use crate::rpc;
 use deluge_rpc_macro::*;
 
+pub use crate::event::{Event, EventKind};
+
 pub use ron::Value;
 pub type List = Vec<Value>;
 pub type Dict = HashMap<String, Value>;

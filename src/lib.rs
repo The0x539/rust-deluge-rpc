@@ -16,5 +16,6 @@ pub use types::{
     InfoHash, FilePriority, AuthLevel, TorrentOptions, TorrentState,
     Query,
     Error, Result,
+    Event, EventKind,
 };
 pub use session::Session;
