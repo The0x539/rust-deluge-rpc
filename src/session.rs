@@ -44,7 +44,7 @@ impl Session {
             cur_req_id: 0,
             listeners: request_send,
             events: event_send,
-            auth_level: AuthLevel::default(),
+            auth_level: AuthLevel::Nobody,
         })
     }
 
