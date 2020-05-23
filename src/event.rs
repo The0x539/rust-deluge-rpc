@@ -76,7 +76,9 @@ pub enum Event {
 
 impl Serialize for EventKind {
     fn serialize<S: Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
-        // TODO: special case ExternalIp => ExternalIPEvent
+        if *self == EventKind::ExternalIp {
+            return ser.serialize_str("ExternalIPEvent");
+        }
         ser.serialize_str(&format!("{:?}Event", self))
     }
 }
