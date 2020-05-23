@@ -41,3 +41,15 @@ impl Serialize for EventKind {
         ser.serialize_str(&format!("{:?}Event", self))
     }
 }
+
+#[macro_export]
+macro_rules! events {
+    ($($kind:ident),+$(,)?) => {
+        {
+            const CAPACITY: usize = [$($crate::EventKind::$kind),+].len();
+            let mut set = ::std::collections::HashSet::with_capacity(CAPACITY);
+            $(set.insert($crate::EventKind::$kind);)+
+            set
+        }
+    }
+}
