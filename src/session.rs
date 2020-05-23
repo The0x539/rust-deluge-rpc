@@ -113,7 +113,7 @@ impl Session {
         Ok(self.auth_level)
     }
 
-    #[rpc_method(class="daemon")]
+    #[rpc_method(class="daemon", method="set_event_interest")]
     async fn _set_event_interest(&mut self, events: &[EventKind]) -> bool;
 
     pub async fn set_event_interest(&mut self, events: &HashSet<EventKind>) -> Result<bool> {
@@ -145,7 +145,7 @@ impl Session {
     #[rpc_method]
     pub async fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<HashMap<String, String>>) -> Option<InfoHash>;
 
-    #[rpc_method]
+    #[rpc_method(method="connect_peer")]
     async fn _connect_peer(&mut self, torrent_id: InfoHash, peer_ip: IpAddr, port: u16);
 
     pub async fn connect_peer(&mut self, torrent_id: InfoHash, peer_addr: SocketAddr) -> Result<()> {
