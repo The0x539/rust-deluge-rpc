@@ -6,6 +6,7 @@ mod session;
 mod receiver;
 mod wtf;
 mod types;
+mod event;
 
 pub use deluge_rpc_macro::Query;
 

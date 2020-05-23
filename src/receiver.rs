@@ -75,9 +75,9 @@ impl MessageReceiver {
                         .send(result)
                         .expect(&format!("Failed to send result for request with #{}", request_id));
                 }
-                rpc::Inbound::Event { event_name, data } => {
+                rpc::Inbound::Event(event) => {
                     // TODO: Event handler registration or something
-                    println!("Received event {}: {:?}", event_name, data);
+                    println!("Received event: {:?}", event);
                 }
             }
         }

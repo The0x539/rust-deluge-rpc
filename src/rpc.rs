@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::convert::{From, TryFrom};
 use crate::types::{InfoHash, Value, List, Dict};
+use crate::event::Event;
 use lazy_static::lazy_static;
 use lazy_regex::regex;
 use std::fmt;
@@ -108,7 +109,7 @@ pub type Result<T> = std::result::Result<T, SpecializedError>;
 #[serde(try_from="List")]
 pub enum Inbound {
     Response { request_id: i64, result: Result<List> },
-    Event { event_name: String, data: List },
+    Event(Event),
 }
 
 #[value_enum(u8)]
@@ -132,10 +133,7 @@ impl TryFrom<List> for Inbound {
                 request_id: data.next().unwrap().into_rust()?,
                 result: Err(Value::Seq(data.collect()).into_rust()?),
             },
-            MessageType::Event => Inbound::Event {
-                event_name: data.next().unwrap().into_rust()?,
-                data: data.next().unwrap().into_rust()?,
-            },
+            MessageType::Event => Inbound::Event(Value::Seq(data.collect()).into_rust()?),
         };
         Ok(val)
     }
