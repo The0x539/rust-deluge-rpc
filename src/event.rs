@@ -18,6 +18,28 @@ fn untuple<'de, D: de::Deserializer<'de>, T: Deserialize<'de>>(de: D) -> Result<
     de.deserialize_tuple(1, UntupleVisitor(Default::default()))
 }
 
+struct UnitVisitor;
+impl<'de> de::Visitor<'de> for UnitVisitor {
+    type Value = ();
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("an empty list")
+    }
+    fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<(), A::Error> {
+        match seq.size_hint() {
+            Some(0) => Ok(()),
+            Some(n) => Err(de::Error::invalid_length(n, &self)),
+            None => match seq.next_element::<Value>()? {
+                None => Ok(()),
+                Some(_) => Err(de::Error::invalid_value(de::Unexpected::Seq, &self)),
+            }
+        }
+    }
+}
+
+fn untuple0<'de, D: de::Deserializer<'de>>(de: D) -> Result<(), D::Error> {
+    de.deserialize_tuple(0, UnitVisitor)
+}
+
 #[rename_event_enum]
 #[enum_kind(EventKind, derive(Hash))]
 #[derive(Debug, Clone, Deserialize, EnumKind)]
@@ -28,6 +50,7 @@ pub enum Event {
     PreTorrentRemoved(InfoHash),
     TorrentStateChanged(InfoHash, TorrentState),
     TorrentTrackerStatus(InfoHash, String),
+    #[serde(deserialize_with = "untuple0", rename = "TorrentQueueChangedEvent")]
     TorrentQueueChanged,
     TorrentFolderRenamed(InfoHash, String, String),
     TorrentFileRenamed(InfoHash, usize, String),
@@ -53,6 +76,7 @@ pub enum Event {
 
 impl Serialize for EventKind {
     fn serialize<S: Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
+        // TODO: special case ExternalIp => ExternalIPEvent
         ser.serialize_str(&format!("{:?}Event", self))
     }
 }
