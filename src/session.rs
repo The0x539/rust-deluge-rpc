@@ -114,15 +114,12 @@ impl Session {
     }
 
     #[rpc_method(class="daemon")]
-    async fn _set_event_interest(&mut self, events: &[String]) -> bool;
+    async fn _set_event_interest(&mut self, events: &[EventKind]) -> bool;
 
     pub async fn set_event_interest(&mut self, events: &HashSet<EventKind>) -> Result<bool> {
         // TODO: Error variant for incorrect crate usage, like here.
         assert!(self.events.receiver_count() > 0, "Cannot set event interest without an active receiver handle (try calling .subscribe_events() first)");
-        let keys = events
-            .iter()
-            .map(EventKind::key)
-            .collect::<Vec<_>>();
+        let keys: Vec<EventKind> = events.iter().copied().collect();
         self._set_event_interest(&keys).await
     }
 

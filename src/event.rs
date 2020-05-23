@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Serialize, Serializer, Deserialize};
 use crate::types::{InfoHash, Value, List, TorrentState};
 use deluge_rpc_macro::rename_event_enum;
 use enum_kinds::EnumKind;
@@ -33,11 +33,8 @@ pub enum Event {
     Unrecognized(String, List),
 }
 
-impl EventKind {
-    // in theory, this could be made to return &'static str,
-    // either using more boilerplate or a more specialized macro.
-    // This code is unlikely to be used other than at startup, though, so whatever.
-    pub fn key(&self) -> String {
-        format!("{:?}Event", self)
+impl Serialize for EventKind {
+    fn serialize<S: Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
+        ser.serialize_str(&format!("{:?}Event", self))
     }
 }
