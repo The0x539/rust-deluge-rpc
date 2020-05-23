@@ -1,7 +1,22 @@
-use serde::{Serialize, Serializer, Deserialize};
+use serde::{Serialize, Serializer, de, Deserialize};
 use crate::types::{InfoHash, Value, List, TorrentState, IpAddr};
 use deluge_rpc_macro::rename_event_enum;
 use enum_kinds::EnumKind;
+
+struct UntupleVisitor<'de, T: Deserialize<'de>>(std::marker::PhantomData<(T, &'de ())>);
+impl<'de, T: Deserialize<'de>> de::Visitor<'de> for UntupleVisitor<'de, T> {
+    type Value = T;
+    fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("a sequence containing a single value")
+    }
+    fn visit_seq<A: de::SeqAccess<'de>>(self, mut seq: A) -> Result<T, A::Error> {
+        seq.next_element()?.ok_or(de::Error::invalid_length(0, &"1"))
+    }
+}
+
+fn untuple<'de, D: de::Deserializer<'de>, T: Deserialize<'de>>(de: D) -> Result<T, D::Error> {
+    de.deserialize_tuple(1, UntupleVisitor(Default::default()))
+}
 
 #[rename_event_enum]
 #[enum_kind(EventKind, derive(Hash))]
@@ -17,7 +32,7 @@ pub enum Event {
     TorrentFolderRenamed(InfoHash, String, String),
     TorrentFileRenamed(InfoHash, usize, String),
     TorrentFinished(InfoHash),
-    TorrentResumed(InfoHash),
+    TorrentResumed(#[serde(deserialize_with = "untuple")] InfoHash),
     TorrentFileCompleted(InfoHash, usize),
     TorrentStorageMoved(InfoHash, String),
     CreateTorrentProgress(usize, usize),
