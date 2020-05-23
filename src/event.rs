@@ -1,5 +1,5 @@
 use serde::{Serialize, Serializer, Deserialize};
-use crate::types::{InfoHash, Value, List, TorrentState};
+use crate::types::{InfoHash, Value, List, TorrentState, IpAddr};
 use deluge_rpc_macro::rename_event_enum;
 use enum_kinds::EnumKind;
 
@@ -20,6 +20,7 @@ pub enum Event {
     TorrentResumed(InfoHash),
     TorrentFileCompleted(InfoHash, usize),
     TorrentStorageMoved(InfoHash, String),
+    CreateTorrentProgress(usize, usize),
     NewVersionAvailable(String),
     SessionStarted,
     SessionPaused,
@@ -28,6 +29,8 @@ pub enum Event {
     PluginEnabled(String),
     PluginDisabled(String),
     ClientDisconnected(isize),
+    #[serde(rename = "ExternalIPEvent")] // Ip (RFC #430) vs IP (PEP 8)
+    ExternalIp(IpAddr),
 
     #[serde(skip)]
     Unrecognized(String, List),
