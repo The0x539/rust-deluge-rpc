@@ -5,6 +5,7 @@ use lazy_static::lazy_static;
 use lazy_regex::regex;
 use std::fmt;
 use deluge_rpc_macro::value_enum;
+use hex::FromHex;
 
 // TODO: even a single specialized error type is a lot of code, so move errors to separate module
 

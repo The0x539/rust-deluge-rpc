@@ -1,5 +1,5 @@
-use std::convert::TryFrom;
 use std::collections::HashMap;
+use std::iter::FromIterator;
 pub use std::net::{IpAddr, SocketAddr};
 
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
@@ -8,6 +8,8 @@ use tokio::prelude::*;
 use tokio::sync::oneshot;
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
+
+use hex::{FromHex, ToHex};
 
 use crate::rpc;
 use deluge_rpc_macro::*;
@@ -24,45 +26,39 @@ pub type WriteStream = io::WriteHalf<Stream>;
 pub type RpcSender = oneshot::Sender<rpc::Result<List>>;
 
 #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-#[serde(try_from = "String", into = "String")]
-pub struct InfoHash([u8; 20]);
+#[serde(transparent)]
+pub struct InfoHash(#[serde(with = "hex")] [u8; 20]);
 
-impl InfoHash {
-    pub fn from_hex(hex_str: &str) -> Option<Self> {
-        if hex_str.len() != 40 {
-            return None;
-        }
-
-        let bytes_vec = match hex::decode(hex_str) {
-            Ok(x) => x,
-            Err(_) => return None,
-        };
-
-        let mut final_array = [0; 20];
-        final_array.copy_from_slice(&bytes_vec);
-
-        Some(Self(final_array))
-    }
-
-    pub fn to_hex(&self) -> String {
-        hex::encode(self.0)
+impl FromHex for InfoHash {
+    type Error = <[u8; 20] as FromHex>::Error;
+    fn from_hex<T: AsRef<[u8]>>(hex: T) -> std::result::Result<Self, Self::Error> {
+        FromHex::from_hex(hex).map(Self)
     }
 }
 
-impl Into<String> for InfoHash {
-    fn into(self) -> String { self.to_string() }
-}
-
-impl TryFrom<String> for InfoHash {
-    type Error = &'static str;
-    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
-        Self::from_hex(&value).ok_or("invalid infohash")
+impl ToHex for InfoHash {
+    fn encode_hex<T: FromIterator<char>>(&self) -> T {
+        self.0.encode_hex()
+    }
+    fn encode_hex_upper<T: FromIterator<char>>(&self) -> T {
+        self.0.encode_hex_upper()
     }
 }
 
 impl std::fmt::Display for InfoHash {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(&self.to_hex())
+        let mut bytes = [0u8; 40];
+
+        // Okay to unwrap because the buffer is exactly the right size.
+        hex::encode_to_slice(self.0, &mut bytes).unwrap();
+
+        // hex::encode_to_slice can be trusted to emit valid UTF-8.
+        let hex_str: &str = unsafe {
+            debug_assert!(std::str::from_utf8(&bytes).is_ok());
+            std::str::from_utf8_unchecked(&bytes)
+        };
+
+        f.write_str(hex_str)
     }
 }
 
