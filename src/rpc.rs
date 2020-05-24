@@ -4,8 +4,8 @@ use crate::types::{InfoHash, Value, List, Dict, Event};
 use lazy_static::lazy_static;
 use lazy_regex::regex;
 use std::fmt;
-use deluge_rpc_macro::value_enum;
 use hex::FromHex;
+use num_enum::TryFromPrimitive;
 
 // TODO: even a single specialized error type is a lot of code, so move errors to separate module
 
@@ -112,7 +112,9 @@ pub enum Inbound {
     Event(Event),
 }
 
-#[value_enum(u8)]
+#[derive(Deserialize, TryFromPrimitive)]
+#[repr(u8)]
+#[serde(try_from = "u8")]
 enum MessageType { Response = 1, Error = 2, Event = 3 }
 
 impl TryFrom<List> for Inbound {
