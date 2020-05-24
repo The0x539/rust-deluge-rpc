@@ -14,7 +14,7 @@ tokio = { version = "0.2", features = ["full"] }
 tokio-rustls = "0.13.0"
 rustls = { version = "0.17.0", features = ["dangerous_configuration"] }
 libflate = "0.1.27"
-deluge-rpc-macro = "0.4.0"
+deluge-rpc-macro = "0.4.1"
 hex = "0.4.2"
 rencode = "0.2.1"
 lazy-regex = "0.1.3"

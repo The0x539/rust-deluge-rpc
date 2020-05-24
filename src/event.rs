@@ -50,12 +50,11 @@ pub enum Event {
     PreTorrentRemoved(InfoHash),
     TorrentStateChanged(InfoHash, TorrentState),
     TorrentTrackerStatus(InfoHash, String),
-    #[serde(deserialize_with = "untuple0", rename = "TorrentQueueChangedEvent")]
     TorrentQueueChanged,
     TorrentFolderRenamed(InfoHash, String, String),
     TorrentFileRenamed(InfoHash, usize, String),
     TorrentFinished(InfoHash),
-    TorrentResumed(#[serde(deserialize_with = "untuple")] InfoHash),
+    TorrentResumed(InfoHash),
     TorrentFileCompleted(InfoHash, usize),
     TorrentStorageMoved(InfoHash, String),
     CreateTorrentProgress(usize, usize),
