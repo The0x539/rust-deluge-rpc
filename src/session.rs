@@ -3,6 +3,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
+use std::convert::TryFrom;
 
 use tokio::prelude::*;
 use tokio::sync::{oneshot, mpsc, broadcast, Notify};
@@ -12,7 +13,7 @@ use tokio_rustls::{TlsConnector, webpki};
 
 use crate::encoding;
 use crate::receiver::MessageReceiver;
-use crate::wtf;
+use crate::wtf::NoCertificateVerification;
 use crate::types::*;
 use deluge_rpc_macro::rpc_method;
 
@@ -27,9 +28,9 @@ pub struct Session {
 }
 
 impl Session {
-    pub async fn new(endpoint: impl tokio::net::ToSocketAddrs) -> Result<Self> {
+    pub async fn connect(endpoint: impl tokio::net::ToSocketAddrs) -> Result<Self> {
         let mut tls_config = rustls::ClientConfig::new();
-        tls_config.dangerous().set_certificate_verifier(Arc::new(wtf::NoCertificateVerification));
+        tls_config.dangerous().set_certificate_verifier(Arc::new(NoCertificateVerification));
         let tls_connector = TlsConnector::from(Arc::new(tls_config));
 
         let tcp_stream = TcpStream::connect(endpoint).await?;
@@ -55,18 +56,18 @@ impl Session {
         })
     }
 
-    pub async fn close(self) -> Result<()> {
+    pub async fn disconnect(self) -> std::result::Result<(), (Stream, io::Error)> {
         self.shutdown_notify.notify();
-        let read_stream = self.receiver_thread.await.expect("receiver thread panicked")?;
+        let read_stream = self.receiver_thread.await.expect("receiver thread panicked").expect("receiver thread errored");
         let mut stream = read_stream.unsplit(self.stream);
-        stream.shutdown().await?;
-        Ok(())
+        stream.shutdown().await.map_err(|e| (stream, e))
     }
 
     async fn send(&mut self, req: impl Serialize) -> Result<()> {
         let body = encoding::encode(&[req]).unwrap();
+        let len = u32::try_from(body.len()).expect("request body too large");
         self.stream.write_u8(1).await?;
-        self.stream.write_u32(body.len() as u32).await?;
+        self.stream.write_u32(len).await?;
         self.stream.write_all(&body).await?;
         self.stream.flush().await?;
         Ok(())
@@ -134,9 +135,7 @@ impl Session {
     }
 
     #[rpc_method(class="daemon")]
-    pub async fn shutdown(mut self) -> () {
-        self.close().await
-    }
+    pub async fn shutdown(&mut self) -> ();
 
     #[rpc_method(class="daemon")]
     pub async fn get_method_list(&mut self) -> Vec<String>;

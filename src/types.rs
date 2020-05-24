@@ -18,8 +18,9 @@ pub use ron::Value;
 pub type List = Vec<Value>;
 pub type Dict = HashMap<String, Value>;
 
-pub type ReadStream = io::ReadHalf<TlsStream<TcpStream>>;
-pub type WriteStream = io::WriteHalf<TlsStream<TcpStream>>;
+pub type Stream = TlsStream<TcpStream>;
+pub type ReadStream = io::ReadHalf<Stream>;
+pub type WriteStream = io::WriteHalf<Stream>;
 pub type RpcSender = oneshot::Sender<rpc::Result<List>>;
 
 #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
