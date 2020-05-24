@@ -1,9 +1,10 @@
-pub mod rpc;
-
+mod inbound;
+mod rpc_error;
 mod event;
-pub use event::{Event, EventKind};
-
 #[macro_use] mod macros;
+
+pub use event::{Event, EventKind};
+pub use inbound::Inbound;
 
 use std::collections::HashMap;
 use std::iter::FromIterator;
@@ -29,7 +30,7 @@ pub type Dict = HashMap<String, Value>;
 pub type Stream = TlsStream<TcpStream>;
 pub type ReadStream = io::ReadHalf<Stream>;
 pub type WriteStream = io::WriteHalf<Stream>;
-pub type RpcSender = oneshot::Sender<rpc::Result<List>>;
+pub type RpcSender = oneshot::Sender<rpc_error::Result<List>>;
 
 #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(transparent)]
@@ -130,7 +131,7 @@ pub trait Query: DeserializeOwned {
 // TODO: Incorporate serde errors
 pub enum Error {
     Network(io::Error),
-    Rpc(rpc::Error),
+    Rpc(rpc_error::Error),
     BadResponse(rencode::Error),
     ChannelClosed(&'static str),
 }
@@ -138,8 +139,8 @@ pub enum Error {
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self { Self::Network(e) }
 }
-impl From<rpc::Error> for Error {
-    fn from(e: rpc::Error) -> Self { Self::Rpc(e) }
+impl From<rpc_error::Error> for Error {
+    fn from(e: rpc_error::Error) -> Self { Self::Rpc(e) }
 }
 impl From<rencode::Error> for Error {
     fn from(e: rencode::Error) -> Self { Self::BadResponse(e) }
