@@ -1,12 +1,10 @@
 #![feature(str_strip)] // sorry
 
 mod encoding;
-mod rpc;
 mod session;
 mod receiver;
 mod wtf;
 mod types;
-mod event;
 
 pub use deluge_rpc_macro::Query;
 

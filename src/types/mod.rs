@@ -1,3 +1,8 @@
+pub mod rpc;
+
+mod event;
+pub use event::{Event, EventKind};
+
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::str::FromStr;
@@ -14,10 +19,6 @@ use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;
 
 use hex::{FromHex, ToHex};
-
-use crate::rpc;
-
-pub use crate::event::{Event, EventKind};
 
 pub use ron::Value;
 pub type List = Vec<Value>;

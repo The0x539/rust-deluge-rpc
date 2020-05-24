@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::encoding;
-use crate::rpc;
 use crate::types::*;
 
 use tokio::prelude::*;
