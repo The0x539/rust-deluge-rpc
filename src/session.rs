@@ -5,8 +5,9 @@ use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 
 use tokio::prelude::*;
-use tokio::sync::{oneshot, mpsc, broadcast};
+use tokio::sync::{oneshot, mpsc, broadcast, Notify};
 use tokio::net::TcpStream;
+use tokio::task::JoinHandle;
 use tokio_rustls::{TlsConnector, webpki};
 
 use crate::encoding;
@@ -20,6 +21,8 @@ pub struct Session {
     cur_req_id: i64,
     listeners: mpsc::Sender<(i64, RpcSender)>,
     events: broadcast::Sender<Event>, // Only used for .subscribe()
+    receiver_thread: JoinHandle<Result<ReadStream>>,
+    shutdown_notify: Arc<Notify>,
     auth_level: AuthLevel,
 }
 
@@ -36,20 +39,27 @@ impl Session {
         let (reader, writer) = io::split(stream);
         let (request_send, request_recv) = mpsc::channel(100);
         let (event_send, _) = broadcast::channel(100);
+        let shutdown_notify = Arc::new(Notify::new());
 
-        MessageReceiver::spawn(reader, request_recv, event_send.clone());
+        let receiver = MessageReceiver::new(reader, request_recv, event_send.clone());
+        let receiver_thread = tokio::spawn(receiver.run(shutdown_notify.clone()));
 
         Ok(Self {
             stream: writer,
             cur_req_id: 0,
             listeners: request_send,
             events: event_send,
+            receiver_thread,
+            shutdown_notify,
             auth_level: AuthLevel::Nobody,
         })
     }
 
-    pub async fn close(mut self) -> Result<()> {
-        self.stream.shutdown().await?;
+    pub async fn close(self) -> Result<()> {
+        self.shutdown_notify.notify();
+        let read_stream = self.receiver_thread.await.expect("receiver thread panicked")?;
+        let mut stream = read_stream.unsplit(self.stream);
+        stream.shutdown().await?;
         Ok(())
     }
 

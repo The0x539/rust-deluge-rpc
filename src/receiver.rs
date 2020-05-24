@@ -1,11 +1,12 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use crate::encoding;
 use crate::rpc;
 use crate::types::*;
 
 use tokio::prelude::*;
-use tokio::sync::{mpsc, broadcast};
+use tokio::sync::{mpsc, broadcast, Notify};
 
 pub struct MessageReceiver {
     stream: ReadStream,
@@ -15,17 +16,12 @@ pub struct MessageReceiver {
 }
 
 impl MessageReceiver {
-    pub fn spawn(stream: ReadStream, listeners: mpsc::Receiver<(i64, RpcSender)>, events: broadcast::Sender<Event>) {
-        tokio::spawn(Self::new(stream, listeners, events).run());
-    }
-
-    pub fn new(stream: ReadStream, listeners: mpsc::Receiver<(i64, RpcSender)>, events: broadcast::Sender<Event>) -> Self {
-        Self {
-            stream,
-            listeners,
-            events,
-            channels: HashMap::new(),
-        }
+    pub fn new(
+        stream: ReadStream,
+        listeners: mpsc::Receiver<(i64, RpcSender)>,
+        events: broadcast::Sender<Event>,
+    ) -> Self {
+        Self { stream, listeners, events, channels: HashMap::new() }
     }
 
     async fn recv(&mut self) -> Result<rpc::Inbound> {
@@ -62,26 +58,29 @@ impl MessageReceiver {
         }
     }
 
-    async fn run(mut self) -> Result<()> {
+    pub async fn run(mut self, shutdown: Arc<Notify>) -> Result<ReadStream> {
         loop {
-            match self.recv().await? {
-                rpc::Inbound::Response { request_id, result } => {
-                    // request() always sends the listener oneshot before invoking RPC
-                    // therefore, if we're handling a valid response, it's guaranteed that the
-                    // request's oneshot either is already in our hashmap or is in the mpsc.
-                    // doing this here turns that guarantee of (A or B) into a guarantee of A.
-                    self.update_listeners().await?;
-                    self.channels
-                        .remove(&request_id)
-                        .expect(&format!("Received result for nonexistent request #{}", request_id))
-                        .send(result)
-                        .expect(&format!("Failed to send result for request #{}", request_id));
-                }
-                rpc::Inbound::Event(event) => {
-                    self.events
-                        .send(event)
-                        .expect("Failed to send event");
-                }
+            tokio::select! {
+                message = self.recv() => match message? {
+                    rpc::Inbound::Response { request_id, result } => {
+                        // request() always sends the listener oneshot before invoking RPC
+                        // therefore, if we're handling a valid response, it's guaranteed that the
+                        // request's oneshot either is already in our hashmap or is in the mpsc.
+                        // doing this here turns that guarantee of (A or B) into a guarantee of A.
+                        self.update_listeners().await?;
+                        self.channels
+                            .remove(&request_id)
+                            .expect(&format!("Received result for nonexistent request #{}", request_id))
+                            .send(result)
+                            .expect(&format!("Failed to send result for request #{}", request_id));
+                    }
+                    rpc::Inbound::Event(event) => {
+                        self.events
+                            .send(event)
+                            .expect("Failed to send event");
+                    }
+                },
+                _ = shutdown.notified() => return Ok(self.stream),
             }
         }
     }
