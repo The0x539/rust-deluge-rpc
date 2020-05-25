@@ -7,47 +7,35 @@ pub use event::{Event, EventKind};
 pub use message::Message;
 
 use std::collections::HashMap;
-use std::iter::FromIterator;
-use std::str::FromStr;
-use std::convert::TryFrom;
 pub use std::net::{IpAddr, SocketAddr};
 
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
-
-use num_enum::{IntoPrimitive, TryFromPrimitive};
-
-use tokio::io;
-use tokio::sync::oneshot;
-use tokio::net::TcpStream;
-use tokio_rustls::client::TlsStream;
-
-use hex::{FromHex, ToHex};
 
 pub use ron::Value;
 pub type List = Vec<Value>;
 pub type Dict = HashMap<String, Value>;
 
-pub type Stream = TlsStream<TcpStream>;
-pub type ReadStream = io::ReadHalf<Stream>;
-pub type WriteStream = io::WriteHalf<Stream>;
-pub type RpcSender = oneshot::Sender<rpc_error::Result<List>>;
+pub type Stream = tokio_rustls::client::TlsStream<tokio::net::TcpStream>;
+pub type ReadStream = tokio::io::ReadHalf<Stream>;
+pub type WriteStream = tokio::io::WriteHalf<Stream>;
+pub type RpcSender = tokio::sync::oneshot::Sender<rpc_error::Result<List>>;
 
 #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[serde(transparent)]
 pub struct InfoHash(#[serde(with = "hex")] [u8; 20]);
 
-impl FromHex for InfoHash {
-    type Error = <[u8; 20] as FromHex>::Error;
+impl hex::FromHex for InfoHash {
+    type Error = <[u8; 20] as hex::FromHex>::Error;
     fn from_hex<T: AsRef<[u8]>>(hex: T) -> std::result::Result<Self, Self::Error> {
-        FromHex::from_hex(hex).map(Self)
+        hex::FromHex::from_hex(hex).map(Self)
     }
 }
 
-impl ToHex for InfoHash {
-    fn encode_hex<T: FromIterator<char>>(&self) -> T {
+impl hex::ToHex for InfoHash {
+    fn encode_hex<T: std::iter::FromIterator<char>>(&self) -> T {
         self.0.encode_hex()
     }
-    fn encode_hex_upper<T: FromIterator<char>>(&self) -> T {
+    fn encode_hex_upper<T: std::iter::FromIterator<char>>(&self) -> T {
         self.0.encode_hex_upper()
     }
 }
@@ -131,14 +119,14 @@ pub trait Query: DeserializeOwned {
 
 // TODO: Incorporate serde errors
 pub enum Error {
-    Network(io::Error),
+    Network(tokio::io::Error),
     Rpc(rpc_error::Error),
     BadResponse(rencode::Error),
     ChannelClosed(&'static str),
 }
 
-impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Self { Self::Network(e) }
+impl From<tokio::io::Error> for Error {
+    fn from(e: tokio::io::Error) -> Self { Self::Network(e) }
 }
 impl From<rpc_error::Error> for Error {
     fn from(e: rpc_error::Error) -> Self { Self::Rpc(e) }

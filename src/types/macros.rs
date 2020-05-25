@@ -8,8 +8,8 @@ macro_rules! u8_enum {
         ),+$(,)?
     ) => {
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-        #[derive(TryFromPrimitive, IntoPrimitive)]
-        #[derive(Serialize, Deserialize)]
+        #[derive(::num_enum::TryFromPrimitive, ::num_enum::IntoPrimitive)]
+        #[derive(::serde::Serialize, ::serde::Deserialize)]
         #[serde(try_from = "u8", into = "u8")]
         #[repr(u8)]
         $(#[$attr])*
@@ -29,11 +29,11 @@ macro_rules! string_enum {
         $( $(#[$variant_attr:meta])* $variant:ident ),+$(,)?
     ) => {
         #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-        #[derive(Serialize, Deserialize)]
+        #[derive(::serde::Serialize, ::serde::Deserialize)]
         #[serde(try_from = "String", into = "&'static str")]
         $(#[$attr])*
         $vis enum $name {$( $(#[$variant_attr])* $variant ),+}
-        impl FromStr for $name {
+        impl ::std::str::FromStr for $name {
             type Err = String;
             fn from_str(s: &str) -> std::result::Result<Self, String> {
                 match s {
@@ -42,7 +42,7 @@ macro_rules! string_enum {
                 }
             }
         }
-        impl Into<&'static str> for $name {
+        impl ::std::convert::Into<&'static str> for $name {
             fn into(self) -> &'static str {
                 match self {
                     $(Self::$variant => stringify!($variant),)+
@@ -50,7 +50,7 @@ macro_rules! string_enum {
             }
         }
         // It's incredibly dumb that there's no blanket impl for this.
-        impl TryFrom<String> for $name {
+        impl ::std::convert::TryFrom<String> for $name {
             type Error = String;
             fn try_from(s: String) -> std::result::Result<Self, String> {
                 s.as_str().parse()
