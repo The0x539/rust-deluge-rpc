@@ -1,44 +1,12 @@
 use serde::{Serialize, de::DeserializeOwned};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 
 use deluge_rpc_macro::rpc_class;
 
-use crate::types::{Result, TorrentOptions, AuthLevel, InfoHash, Query, EventKind};
+use crate::types::{Result, TorrentOptions, AuthLevel, InfoHash, Query};
 use crate::session::Session;
-
-rpc_class! {
-    impl Session::daemon;
-
-    #[rpc(method = "info", auth_level = "Nobody")]
-    pub rpc fn daemon_info(&mut self) -> String;
-
-    #[rpc(auth_level = "Nobody", client_version = "2.0.4.dev23")]
-    pub rpc fn login(&mut self, username: &str, password: &str) -> AuthLevel {
-        self.auth_level = val;
-        Ok(self.auth_level)
-    }
-
-    #[rpc(method = "set_event_interest")]
-    rpc fn _set_event_interest(&mut self, events: &[EventKind]) -> bool;
-
-    pub async fn set_event_interest(&mut self, events: &HashSet<EventKind>) -> Result<bool> {
-        // TODO: Error variant for incorrect crate usage, like here.
-        assert!(self.event_receiver_count() > 0, "Cannot set event interest without an active receiver handle (try calling .subscribe_events() first)");
-        let keys: Vec<EventKind> = events.iter().copied().collect();
-        self._set_event_interest(&keys).await
-    }
-
-    pub rpc fn shutdown(&mut self) -> ();
-
-    pub rpc fn get_method_list(&mut self) -> Vec<String>;
-
-    pub rpc fn get_version(&mut self) -> String;
-
-    #[rpc(auth_level = "ReadOnly")]
-    pub rpc fn authorized_call(&mut self, rpc: &str) -> bool;
-}
 
 rpc_class! {
     impl Session::core;
@@ -51,7 +19,7 @@ rpc_class! {
     pub rpc fn add_torrent_magnet(&mut self, uri: &str, options: &TorrentOptions) -> InfoHash;
 
     // TODO: accept guaranteed-valid structs for the URL and HTTP headers
-    pub rpc fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<HashMap<String, String>>) -> Option<InfoHash>;
+    pub rpc fn add_torrent_url(&mut self, url: &str, options: &TorrentOptions, headers: Option<&HashMap<String, String>>) -> Option<InfoHash>;
 
     #[rpc(method = "connect_peer")]
     rpc fn _connect_peer(&mut self, torrent_id: InfoHash, peer_ip: IpAddr, port: u16);
@@ -133,13 +101,13 @@ rpc_class! {
     }
 
     #[rpc(method = "get_torrents_status")]
-    pub rpc fn get_torrents_status_dyn<T: DeserializeOwned, U: Serialize>(&mut self, filter_dict: Option<HashMap<String, U>>, keys: &[&str], diff: bool) -> HashMap<InfoHash, T>;
+    pub rpc fn get_torrents_status_dyn<T: DeserializeOwned, U: Serialize>(&mut self, filter_dict: Option<&HashMap<String, U>>, keys: &[&str], diff: bool) -> HashMap<InfoHash, T>;
 
-    pub async fn get_torrents_status<T: Query, U: Serialize>(&mut self, filter_dict: Option<HashMap<String, U>>) -> Result<HashMap<InfoHash, T>> {
+    pub async fn get_torrents_status<T: Query, U: Serialize>(&mut self, filter_dict: Option<&HashMap<String, U>>) -> Result<HashMap<InfoHash, T>> {
         self.get_torrents_status_dyn(filter_dict, T::keys(), false).await
     }
 
-    pub async fn get_torrents_status_diff<T: Query, U: Serialize>(&mut self, filter_dict: Option<HashMap<String, U>>) -> Result<HashMap<InfoHash, T::Diff>> {
+    pub async fn get_torrents_status_diff<T: Query, U: Serialize>(&mut self, filter_dict: Option<&HashMap<String, U>>) -> Result<HashMap<InfoHash, T::Diff>> {
         self.get_torrents_status_dyn(filter_dict, T::keys(), true).await
     }
 
@@ -188,7 +156,7 @@ rpc_class! {
 
     pub rpc fn resume_torrents(&mut self, torrent_ids: &[InfoHash]);
 
-    pub rpc fn set_config(&mut self, config: HashMap<String, impl Serialize>);
+    pub rpc fn set_config(&mut self, config: &HashMap<String, impl Serialize>);
 
     pub rpc fn set_torrent_options(&mut self, torrent_ids: &[InfoHash], options: &TorrentOptions);
 
@@ -198,31 +166,4 @@ rpc_class! {
     pub rpc fn update_account(&mut self, username: &str, password: &str, auth_level: AuthLevel);
 
     pub rpc fn upload_plugin(&mut self, filename: &str, filedump: &[u8]);
-}
-
-rpc_class! {
-    impl Session::label;
-
-    pub rpc fn get_labels(&mut self) -> Vec<String>;
-
-    #[rpc(method = "add")]
-    pub rpc fn add_label(&mut self, label_id: &str);
-
-    #[rpc(method = "remove")]
-    pub rpc fn remove_label(&mut self, label_id: &str);
-
-    #[rpc(method = "get_options")]
-    pub rpc fn get_label_options<T: DeserializeOwned>(&mut self, label_id: &str) -> HashMap<String, T>;
-
-    #[rpc(method = "set_options")]
-    pub rpc fn set_label_options(&mut self, label_id: &str, options: HashMap<String, impl Serialize>);
-
-    #[rpc(method = "set_torrent")]
-    pub rpc fn set_torrent_label(&mut self, torrent_id: InfoHash, label_id: &str);
-
-    #[rpc(method = "get_config")]
-    pub rpc fn get_label_config<T: DeserializeOwned>(&mut self) -> HashMap<String, T>;
-
-    #[rpc(method = "set_config")]
-    pub rpc fn set_label_config(&mut self, config: HashMap<String, impl Serialize>);
 }
