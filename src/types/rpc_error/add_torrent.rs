@@ -1,34 +1,12 @@
-use serde::Deserialize;
 use std::convert::From;
-use crate::types::{InfoHash, Value, List, Dict};
+use crate::types::InfoHash;
 use lazy_static::lazy_static;
 use lazy_regex::regex;
 use std::fmt;
 use hex::FromHex;
 
-#[derive(Debug, PartialEq, Eq, Deserialize)]
-#[serde(from = "(String, List, Dict, String)")]
-pub struct GenericError {
-    pub exception: String,
-    pub args: List,
-    pub kwargs: Dict,
-    pub traceback: String,
-}
-
-impl fmt::Display for GenericError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&self.traceback)
-    }
-}
-
-impl From<(String, List, Dict, String)> for GenericError {
-    fn from((exception, args, kwargs, traceback): (String, List, Dict, String)) -> Self {
-        Self { exception, args, kwargs, traceback }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq)]
-pub enum AddTorrentError {
+pub enum Error {
     AlreadyInSession(InfoHash),
     AlreadyBeingAdded(InfoHash),
     UnableToAddMagnet(String),
@@ -39,7 +17,7 @@ pub enum AddTorrentError {
     Other(String),
 }
 
-impl fmt::Display for AddTorrentError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::AlreadyInSession(hash) => write!(f, "Torrent already in session: {}", hash),
@@ -53,7 +31,7 @@ impl fmt::Display for AddTorrentError {
     }
 }
 
-impl From<&str> for AddTorrentError {
+impl From<&str> for Error {
     fn from(msg: &str) -> Self {
         // TODO: order conditionals based on likelihood of occurrence
         if regex!(r"^Torrent already in session \([0-9a-fA-F]{40}\)\.$").is_match(msg) {
@@ -73,31 +51,3 @@ impl From<&str> for AddTorrentError {
         }
     }
 }
-
-#[derive(Debug, PartialEq, Eq, Deserialize)]
-#[serde(from="GenericError")]
-pub enum SpecializedError {
-    AddTorrent(AddTorrentError),
-    Generic(GenericError),
-}
-
-impl fmt::Display for SpecializedError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::AddTorrent(e) => write!(f, "AddTorrentError: {}", e),
-            Self::Generic(e) => f.write_str(&e.to_string()),
-        }
-    }
-}
-
-impl From<GenericError> for SpecializedError {
-    fn from(err: GenericError) -> Self {
-        match (err.exception.as_str(), err.args.as_slice()) {
-            ("AddTorrentError", [Value::String(msg)]) => Self::AddTorrent(AddTorrentError::from(msg.as_str())),
-            _ => Self::Generic(err),
-        }
-    }
-}
-
-pub type Error = SpecializedError;
-pub type Result<T> = std::result::Result<T, SpecializedError>;
