@@ -5,6 +5,7 @@ mod session;
 mod receiver;
 mod wtf;
 mod types;
+mod methods;
 
 pub use types::{
     List, Dict,
