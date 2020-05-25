@@ -16,7 +16,7 @@ use serde::{Serialize, Deserialize, de::DeserializeOwned};
 
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use tokio::prelude::*;
+use tokio::io;
 use tokio::sync::oneshot;
 use tokio::net::TcpStream;
 use tokio_rustls::client::TlsStream;

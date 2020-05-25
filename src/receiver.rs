@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::encoding;
 use crate::types::{ReadStream, RpcSender, Message, Event, Error, Result};
 
-use tokio::prelude::*;
+use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, broadcast, Notify};
 
 pub struct MessageReceiver {

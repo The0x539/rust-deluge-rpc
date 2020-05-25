@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, SocketAddr};
 use std::convert::TryFrom;
 
-use tokio::prelude::*;
+use tokio::io::{self, AsyncWriteExt};
 use tokio::sync::{oneshot, mpsc, broadcast, Notify};
 use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
