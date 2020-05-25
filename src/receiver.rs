@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::encoding;
-use crate::types::{ReadStream, RpcSender, Inbound, Event, Error, Result};
+use crate::types::{ReadStream, RpcSender, Message, Event, Error, Result};
 
 use tokio::prelude::*;
 use tokio::sync::{mpsc, broadcast, Notify};
@@ -23,7 +23,7 @@ impl MessageReceiver {
         Self { stream, listeners, events, channels: HashMap::new() }
     }
 
-    async fn recv(&mut self) -> Result<Inbound> {
+    async fn recv(&mut self) -> Result<Message> {
         // Get protocol version
         let ver = self.stream.read_u8().await?;
         // In theory, this could kill the session rather than the program, but eh
@@ -61,7 +61,7 @@ impl MessageReceiver {
         loop {
             tokio::select! {
                 message = self.recv() => match message? {
-                    Inbound::Response { request_id, result } => {
+                    Message::Response { request_id, result } => {
                         // request() always sends the listener oneshot before invoking RPC
                         // therefore, if we're handling a valid response, it's guaranteed that the
                         // request's oneshot either is already in our hashmap or is in the mpsc.
@@ -73,7 +73,7 @@ impl MessageReceiver {
                             .send(result)
                             .expect(&format!("Failed to send result for request #{}", request_id));
                     }
-                    Inbound::Event(event) => {
+                    Message::Event(event) => {
                         self.events
                             .send(event)
                             .expect("Failed to send event");

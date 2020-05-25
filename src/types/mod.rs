@@ -1,10 +1,10 @@
-mod inbound;
+mod message;
 mod rpc_error;
 mod event;
 #[macro_use] mod macros;
 
 pub use event::{Event, EventKind};
-pub use inbound::Inbound;
+pub use message::Message;
 
 use std::collections::HashMap;
 use std::iter::FromIterator;
