@@ -11,6 +11,7 @@ pub use types::{
     List, Dict,
     IpAddr, SocketAddr,
     InfoHash, FilePriority, AuthLevel, TorrentOptions, TorrentState,
+    FilterKey, FilterDict,
     Query,
     Error, Result,
     Event, EventKind,

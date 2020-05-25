@@ -21,38 +21,57 @@ macro_rules! u8_enum {
     }
 }
 
-// TODO: renaming?
 macro_rules! string_enum {
     (
         $(#[$attr:meta])*
         $vis:vis enum $name:ident $(= $default:ident)?;
-        $( $(#[$variant_attr:meta])* $variant:ident ),+$(,)?
+        $(
+            $(#[$variant_attr:meta])*
+            $variant:ident $(= $discrim:literal)?
+        ),+$(,)?
     ) => {
-        #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
         #[derive(::serde::Serialize, ::serde::Deserialize)]
         #[serde(try_from = "String", into = "&'static str")]
         $(#[$attr])*
         $vis enum $name {$( $(#[$variant_attr])* $variant ),+}
         impl ::std::str::FromStr for $name {
             type Err = String;
-            fn from_str(s: &str) -> std::result::Result<Self, String> {
+            fn from_str(s: &str) -> ::std::result::Result<Self, String> {
+                // Accept either version for FromStr (and thus for Deserialize)
                 match s {
-                    $(stringify!($variant) => Ok(Self::$variant),)+
+                    $(stringify!($variant) $( | $discrim)? => Ok(Self::$variant),)+
                     s => Err(format!("Invalid {} value: {:?}", stringify!($name), s)),
                 }
             }
         }
         impl ::std::convert::Into<&'static str> for $name {
             fn into(self) -> &'static str {
+                // If provided, use discriminants for Into (and thus for Serialize)
                 match self {
-                    $(Self::$variant => stringify!($variant),)+
+                    $(
+                        Self::$variant => {
+                            let s = $($discrim; let _ = )? stringify!($variant);
+                            s
+                        }
+                    ),+
                 }
+            }
+        }
+        impl ::std::fmt::Display for $name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                // stick to variant names for Display impl, matching Debug impl
+                let s = match self {
+                    $(Self::$variant => stringify!($variant)),+
+                };
+                f.write_str(s)
             }
         }
         // It's incredibly dumb that there's no blanket impl for this.
         impl ::std::convert::TryFrom<String> for $name {
             type Error = String;
             fn try_from(s: String) -> std::result::Result<Self, String> {
+                // Forward to FromStr
                 s.as_str().parse()
             }
         }

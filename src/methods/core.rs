@@ -5,7 +5,7 @@ use std::net::{IpAddr, SocketAddr};
 
 use deluge_rpc_macro::rpc_class;
 
-use crate::types::{Result, TorrentOptions, AuthLevel, InfoHash, Query};
+use crate::types::{Result, TorrentOptions, AuthLevel, InfoHash, Query, FilterKey, FilterDict};
 use crate::session::Session;
 
 rpc_class! {
@@ -65,7 +65,7 @@ rpc_class! {
 
     pub rpc fn get_external_ip(&mut self) -> IpAddr;
 
-    pub rpc fn get_filter_tree(&mut self, show_zero_hits: bool, hide_cat: &[&str]) -> HashMap<String, Vec<(String, u64)>>;
+    pub rpc fn get_filter_tree(&mut self, show_zero_hits: bool, hide_cat: &[&str]) -> HashMap<FilterKey, Vec<(String, u64)>>;
 
     pub rpc fn get_free_space(&mut self, path: Option<&str>) -> u64;
 
@@ -101,13 +101,13 @@ rpc_class! {
     }
 
     #[rpc(method = "get_torrents_status")]
-    pub rpc fn get_torrents_status_dyn<T: DeserializeOwned, U: Serialize>(&mut self, filter_dict: Option<&HashMap<String, U>>, keys: &[&str], diff: bool) -> HashMap<InfoHash, T>;
+    pub rpc fn get_torrents_status_dyn<T: DeserializeOwned>(&mut self, filter_dict: Option<&FilterDict>, keys: &[&str], diff: bool) -> HashMap<InfoHash, T>;
 
-    pub async fn get_torrents_status<T: Query, U: Serialize>(&mut self, filter_dict: Option<&HashMap<String, U>>) -> Result<HashMap<InfoHash, T>> {
+    pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<&FilterDict>) -> Result<HashMap<InfoHash, T>> {
         self.get_torrents_status_dyn(filter_dict, T::keys(), false).await
     }
 
-    pub async fn get_torrents_status_diff<T: Query, U: Serialize>(&mut self, filter_dict: Option<&HashMap<String, U>>) -> Result<HashMap<InfoHash, T::Diff>> {
+    pub async fn get_torrents_status_diff<T: Query>(&mut self, filter_dict: Option<&FilterDict>) -> Result<HashMap<InfoHash, T::Diff>> {
         self.get_torrents_status_dyn(filter_dict, T::keys(), true).await
     }
 

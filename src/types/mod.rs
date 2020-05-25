@@ -82,6 +82,17 @@ string_enum! {
     Error, Moving, Queued, Paused,
 }
 
+string_enum! {
+    pub enum FilterKey;
+
+    State = "state",
+    Tracker = "tracker_host",
+    Owner = "owner",
+    Label = "label",
+}
+
+pub type FilterDict = HashMap<FilterKey, String>;
+
 option_struct! {
     #[derive(Clone, Default)]
     pub struct TorrentOptions;
