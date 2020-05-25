@@ -122,6 +122,7 @@ option_struct! {
     pub super_seeding: bool,
 }
 
+pub use deluge_rpc_macro::Query;
 pub trait Query: DeserializeOwned {
     type Diff: DeserializeOwned + Default + PartialEq;
     fn keys() -> &'static [&'static str];
