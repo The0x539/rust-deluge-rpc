@@ -122,8 +122,8 @@ option_struct! {
 }
 
 pub use deluge_rpc_macro::Query;
-pub trait Query: DeserializeOwned {
-    type Diff: DeserializeOwned + Default + PartialEq;
+pub trait Query: DeserializeOwned + Clone {
+    type Diff: DeserializeOwned + Default + Clone + PartialEq;
     fn keys() -> &'static [&'static str];
     fn update(&mut self, diff: Self::Diff) -> bool;
 }
