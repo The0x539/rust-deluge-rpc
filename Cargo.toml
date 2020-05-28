@@ -1,6 +1,6 @@
 [package]
 name = "deluge-rpc"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["The0x539 <the0x539@gmail.com>"]
 edition = "2018"
 license = "GPL-3.0-only"
