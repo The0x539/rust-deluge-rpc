@@ -1,10 +1,12 @@
 use serde::{Serialize, de::DeserializeOwned};
 
 use std::sync::Arc;
+use std::sync::atomic::AtomicI64;
+use std::sync::atomic::Ordering;
 use std::convert::TryFrom;
 
 use tokio::io::{self, AsyncWriteExt};
-use tokio::sync::{oneshot, mpsc, broadcast, Notify};
+use tokio::sync::{oneshot, mpsc, broadcast, Notify, Mutex};
 use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 use tokio_rustls::{TlsConnector, webpki};
@@ -16,9 +18,9 @@ use crate::wtf::NoCertificateVerification;
 
 #[derive(Debug)]
 pub struct Session {
-    stream: WriteStream,
-    cur_req_id: i64,
-    listeners: mpsc::Sender<(i64, RpcSender)>,
+    stream: Mutex<WriteStream>,
+    cur_req_id: AtomicI64,
+    listeners: Mutex<mpsc::Sender<(i64, RpcSender)>>,
     events: broadcast::Sender<Event>, // Only used for .subscribe()
     receiver_thread: JoinHandle<Result<ReadStream>>,
     shutdown_notify: Arc<Notify>,
@@ -44,9 +46,9 @@ impl Session {
         let receiver_thread = tokio::spawn(receiver.run(shutdown_notify.clone()));
 
         Ok(Self {
-            stream: writer,
-            cur_req_id: 0,
-            listeners: request_send,
+            stream: Mutex::new(writer),
+            cur_req_id: AtomicI64::new(0),
+            listeners: Mutex::new(request_send),
             events: event_send,
             receiver_thread,
             shutdown_notify,
@@ -57,32 +59,38 @@ impl Session {
     pub async fn disconnect(self) -> std::result::Result<(), (Stream, io::Error)> {
         self.shutdown_notify.notify();
         let read_stream = self.receiver_thread.await.expect("receiver thread panicked").expect("receiver thread errored");
-        let mut stream = read_stream.unsplit(self.stream);
+        let write_stream = self.stream.into_inner();
+        let mut stream = read_stream.unsplit(write_stream);
         stream.shutdown().await.map_err(|e| (stream, e))
     }
 
-    async fn send(&mut self, req: impl Serialize) -> Result<()> {
+    async fn send(&self, req: impl Serialize) -> Result<()> {
         let body = encoding::encode(&[req]).unwrap();
         let len = u32::try_from(body.len()).expect("request body too large");
-        self.stream.write_u8(1).await?;
-        self.stream.write_u32(len).await?;
-        self.stream.write_all(&body).await?;
-        self.stream.flush().await?;
+        let mut stream = self.stream.lock().await;
+
+        stream.write_u8(1).await?;
+        stream.write_u32(len).await?;
+        stream.write_all(&body).await?;
+        stream.flush().await?;
+
         Ok(())
     }
 
     pub(crate) async fn request<T: DeserializeOwned, U: Serialize, V: Serialize>(
-        &mut self,
+        &self,
         method: &'static str,
         args: U,
         kwargs: V,
     ) -> Result<T> {
-        let id = self.cur_req_id;
-        self.cur_req_id += 1;
+        let id = self.cur_req_id.fetch_add(1, Ordering::Relaxed);
         let request = (id, method, args, kwargs);
 
         let (sender, receiver) = oneshot::channel();
-        self.listeners.send((id, sender))
+        self.listeners
+            .lock()
+            .await
+            .send((id, sender))
             .await
             .map_err(|_| Error::ChannelClosed("rpc listeners"))?;
 
