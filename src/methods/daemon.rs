@@ -11,7 +11,7 @@ rpc_class! {
     #[rpc(method = "info", auth_level = "Nobody")]
     pub rpc fn daemon_info(&self) -> String;
 
-    #[rpc(method = "login", auth_level = "Nobody", client_version = "2.0.4.dev23")]
+    #[rpc(auth_level = "Nobody", client_version = "2.0.4.dev23")]
     rpc fn _login(&self, username: &str, password: &str) -> AuthLevel;
 
     pub async fn login(&mut self, username: &str, password: &str) -> Result<AuthLevel> {
@@ -19,7 +19,6 @@ rpc_class! {
         Ok(self.auth_level)
     }
 
-    #[rpc(method = "set_event_interest")]
     rpc fn _set_event_interest(&self, events: &[EventKind]) -> bool;
 
     pub async fn set_event_interest(&self, events: &HashSet<EventKind>) -> Result<bool> {

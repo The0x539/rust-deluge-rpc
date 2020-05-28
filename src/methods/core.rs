@@ -23,7 +23,6 @@ rpc_class! {
     // TODO: accept guaranteed-valid structs for the URL and HTTP headers
     pub rpc fn add_torrent_url(&self, url: &str, options: &TorrentOptions, headers: Option<&HashMap<String, String>>) -> Option<InfoHash>;
 
-    #[rpc(method = "connect_peer")]
     rpc fn _connect_peer(&self, torrent_id: InfoHash, peer_ip: IpAddr, port: u16);
 
     pub async fn connect_peer(&self, torrent_id: InfoHash, peer_addr: SocketAddr) -> Result<()> {
