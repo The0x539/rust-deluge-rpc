@@ -35,6 +35,14 @@ macro_rules! string_enum {
         #[serde(try_from = "String", into = "&'static str")]
         $(#[$attr])*
         $vis enum $name {$( $(#[$variant_attr])* $variant ),+}
+        impl $name {
+            pub fn as_str(&self) -> &'static str {
+                // stick to variant names, matching Debug impl
+                match self {
+                    $(Self::$variant => stringify!($variant)),+
+                }
+            }
+        }
         impl ::std::str::FromStr for $name {
             type Err = String;
             fn from_str(s: &str) -> ::std::result::Result<Self, String> {
@@ -45,12 +53,12 @@ macro_rules! string_enum {
                 }
             }
         }
-        impl ::std::convert::Into<&'static str> for $name {
-            fn into(self) -> &'static str {
+        impl ::std::convert::From<$name> for &'static str {
+            fn from(value: $name) -> Self {
                 // If provided, use discriminants for Into (and thus for Serialize)
-                match self {
+                match value {
                     $(
-                        Self::$variant => {
+                        $name::$variant => {
                             let s = $($discrim; let _ = )? stringify!($variant);
                             s
                         }
@@ -60,11 +68,7 @@ macro_rules! string_enum {
         }
         impl ::std::fmt::Display for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-                // stick to variant names for Display impl, matching Debug impl
-                let s = match self {
-                    $(Self::$variant => stringify!($variant)),+
-                };
-                f.write_str(s)
+                f.write_str(self.as_str())
             }
         }
         // It's incredibly dumb that there's no blanket impl for this.
