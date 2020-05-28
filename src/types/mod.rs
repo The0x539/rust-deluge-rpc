@@ -6,6 +6,8 @@ mod event;
 pub use event::{Event, EventKind};
 pub use message::Message;
 
+use fnv::FnvHashMap;
+
 use std::collections::HashMap;
 pub use std::net::{IpAddr, SocketAddr};
 
@@ -91,7 +93,7 @@ string_enum! {
     Label = "label",
 }
 
-pub type FilterDict = HashMap<FilterKey, String>;
+pub type FilterDict = FnvHashMap<FilterKey, String>;
 
 option_struct! {
     #[derive(Clone, Default)]

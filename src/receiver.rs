@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 use std::sync::Arc;
 
 use crate::encoding;
@@ -11,7 +11,7 @@ pub struct MessageReceiver {
     stream: ReadStream,
     listeners: mpsc::Receiver<(i64, RpcSender)>,
     events: broadcast::Sender<Event>,
-    channels: HashMap<i64, RpcSender>,
+    channels: FnvHashMap<i64, RpcSender>,
 }
 
 impl MessageReceiver {
@@ -20,7 +20,7 @@ impl MessageReceiver {
         listeners: mpsc::Receiver<(i64, RpcSender)>,
         events: broadcast::Sender<Event>,
     ) -> Self {
-        Self { stream, listeners, events, channels: HashMap::new() }
+        Self { stream, listeners, events, channels: FnvHashMap::default() }
     }
 
     async fn recv(&mut self) -> Result<Message> {

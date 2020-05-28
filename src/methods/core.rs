@@ -1,5 +1,7 @@
 use serde::{Serialize, de::DeserializeOwned};
 
+use fnv::FnvHashMap;
+
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 
@@ -65,7 +67,7 @@ rpc_class! {
 
     pub rpc fn get_external_ip(&mut self) -> IpAddr;
 
-    pub rpc fn get_filter_tree(&mut self, show_zero_hits: bool, hide_cat: &[&str]) -> HashMap<FilterKey, Vec<(String, u64)>>;
+    pub rpc fn get_filter_tree(&mut self, show_zero_hits: bool, hide_cat: &[&str]) -> FnvHashMap<FilterKey, Vec<(String, u64)>>;
 
     pub rpc fn get_free_space(&mut self, path: Option<&str>) -> u64;
 
@@ -101,13 +103,13 @@ rpc_class! {
     }
 
     #[rpc(method = "get_torrents_status")]
-    pub rpc fn get_torrents_status_dyn<T: DeserializeOwned>(&mut self, filter_dict: Option<&FilterDict>, keys: &[&str], diff: bool) -> HashMap<InfoHash, T>;
+    pub rpc fn get_torrents_status_dyn<T: DeserializeOwned>(&mut self, filter_dict: Option<&FilterDict>, keys: &[&str], diff: bool) -> FnvHashMap<InfoHash, T>;
 
-    pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<&FilterDict>) -> Result<HashMap<InfoHash, T>> {
+    pub async fn get_torrents_status<T: Query>(&mut self, filter_dict: Option<&FilterDict>) -> Result<FnvHashMap<InfoHash, T>> {
         self.get_torrents_status_dyn(filter_dict, T::keys(), false).await
     }
 
-    pub async fn get_torrents_status_diff<T: Query>(&mut self, filter_dict: Option<&FilterDict>) -> Result<HashMap<InfoHash, T::Diff>> {
+    pub async fn get_torrents_status_diff<T: Query>(&mut self, filter_dict: Option<&FilterDict>) -> Result<FnvHashMap<InfoHash, T::Diff>> {
         self.get_torrents_status_dyn(filter_dict, T::keys(), true).await
     }
 
