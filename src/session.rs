@@ -14,6 +14,7 @@ use crate::encoding;
 use crate::receiver::MessageReceiver;
 use crate::wtf::NoCertificateVerification;
 
+#[derive(Debug)]
 pub struct Session {
     stream: WriteStream,
     cur_req_id: i64,
