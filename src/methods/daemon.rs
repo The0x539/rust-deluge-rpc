@@ -11,9 +11,11 @@ rpc_class! {
     #[rpc(method = "info", auth_level = "Nobody")]
     pub rpc fn daemon_info(&self) -> String;
 
-    #[rpc(auth_level = "Nobody", client_version = "2.0.4.dev23")]
-    pub rpc fn login(&mut self, username: &str, password: &str) -> AuthLevel {
-        self.auth_level = val;
+    #[rpc(method = "login", auth_level = "Nobody", client_version = "2.0.4.dev23")]
+    rpc fn _login(&self, username: &str, password: &str) -> AuthLevel;
+
+    pub async fn login(&mut self, username: &str, password: &str) -> Result<AuthLevel> {
+        self.auth_level = self._login(username, password).await?;
         Ok(self.auth_level)
     }
 
