@@ -59,8 +59,12 @@ rpc_class! {
 
     pub rpc fn get_config_value<T: DeserializeOwned>(&self, key: &str) -> T;
 
-    // TODO: ConfigQuery trait and/or ConfigKey enum
-    pub rpc fn get_config_values<T: DeserializeOwned>(&self, keys: &[&str]) -> HashMap<String, T>;
+    #[rpc(method = "get_config_values")]
+    pub rpc fn get_config_values_dyn<T: DeserializeOwned>(&self, keys: &[&str]) -> T;
+
+    pub async fn get_config_values<T: Query>(&self) -> Result<T> {
+        self.get_config_values_dyn(T::keys()).await
+    }
 
     pub rpc fn get_enabled_plugins(&self) -> Vec<String>;
 
@@ -87,8 +91,12 @@ rpc_class! {
 
     pub rpc fn get_session_state(&self) -> Vec<InfoHash>;
 
-    // TODO: SessionQuery trait and/or SessionKey enum
-    pub rpc fn get_session_status<T: DeserializeOwned>(&self, keys: &[&str]) -> HashMap<String, T>;
+    #[rpc(method = "get_session_status")]
+    pub rpc fn get_session_status_dyn<T: DeserializeOwned>(&self, keys: &[&str]) -> T;
+
+    pub async fn get_session_status<T: Query>(&self) -> Result<T> {
+        self.get_session_status_dyn(T::keys()).await
+    }
 
     #[rpc(method = "get_torrent_status")]
     pub rpc fn get_torrent_status_dyn<T: DeserializeOwned>(&self, torrent_id: InfoHash, keys: &[&str], diff: bool) -> T;
