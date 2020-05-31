@@ -22,7 +22,7 @@ pub type ReadStream = tokio::io::ReadHalf<Stream>;
 pub type WriteStream = tokio::io::WriteHalf<Stream>;
 pub type RpcSender = tokio::sync::oneshot::Sender<rpc_error::Result<List>>;
 
-#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 #[serde(transparent)]
 pub struct InfoHash(#[serde(with = "hex")] [u8; 20]);
 
