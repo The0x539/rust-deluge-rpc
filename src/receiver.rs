@@ -42,7 +42,7 @@ impl MessageReceiver {
         Ok(message)
     }
 
-    async fn update_listeners(&mut self) -> Result<()> {
+    fn update_listeners(&mut self) -> Result<()> {
         use mpsc::error::TryRecvError;
         loop {
             match self.listeners.try_recv() {
@@ -66,7 +66,7 @@ impl MessageReceiver {
                         // therefore, if we're handling a valid response, it's guaranteed that the
                         // request's oneshot either is already in our hashmap or is in the mpsc.
                         // doing this here turns that guarantee of (A or B) into a guarantee of A.
-                        self.update_listeners().await?;
+                        self.update_listeners()?;
                         self.channels
                             .remove(&request_id)
                             .expect(&format!("Received result for nonexistent request #{}", request_id))
