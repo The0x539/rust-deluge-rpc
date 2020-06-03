@@ -71,12 +71,13 @@ impl MessageReceiver {
                             .remove(&request_id)
                             .expect(&format!("Received result for nonexistent request #{}", request_id))
                             .send(result)
-                            .expect(&format!("Failed to send result for request #{}", request_id));
+                            // The application is free to drop the receiver for any reason.
+                            // If it does, it's not our problem; just drop the result accordingly.
+                            .unwrap_or(());
                     }
                     Message::Event(event) => {
-                        self.events
-                            .send(event)
-                            .expect("Failed to send event");
+                        // See above
+                        self.events.send(event).unwrap_or(0);
                     }
                 },
                 _ = shutdown.notified() => return Ok(self.stream),
