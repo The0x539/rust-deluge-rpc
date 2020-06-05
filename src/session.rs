@@ -28,7 +28,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub async fn connect(endpoint: impl tokio::net::ToSocketAddrs) -> Result<Self> {
+    pub async fn connect(endpoint: impl tokio::net::ToSocketAddrs) -> io::Result<Self> {
         let mut tls_config = rustls::ClientConfig::new();
         tls_config.dangerous().set_certificate_verifier(Arc::new(NoCertificateVerification));
         let tls_connector = TlsConnector::from(Arc::new(tls_config));
