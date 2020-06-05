@@ -2,10 +2,12 @@ use fnv::FnvHashMap;
 use std::sync::Arc;
 
 use crate::encoding;
-use crate::types::{ReadStream, RpcSender, Message, Event, Error, Result};
+use crate::types::{ReadStream, RpcSender, Message, Event, Result};
 
 use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, broadcast, Notify};
+
+use futures::future::FutureExt;
 
 pub struct MessageReceiver {
     stream: ReadStream,
@@ -42,18 +44,14 @@ impl MessageReceiver {
         Ok(message)
     }
 
-    fn update_listeners(&mut self) -> Result<()> {
-        use mpsc::error::TryRecvError;
-        loop {
-            match self.listeners.try_recv() {
-                Ok((id, listener)) => {
-                    // This is unrealistic if request IDs are chosen sanely.
-                    assert!(!self.channels.contains_key(&id), "Request ID conflict for ID {}", id);
-                    self.channels.insert(id, listener);
-                },
-                Err(TryRecvError::Empty) => return Ok(()),
-                Err(TryRecvError::Closed) => return Err(Error::ChannelClosed("rpc listeners")),
-            }
+    fn update_listeners(&mut self) {
+        while let Some(res) = self.listeners.recv().now_or_never() {
+            let (id, listener) = res.expect("rpc listeners channel closed");
+
+            // This is unrealistic if request IDs are chosen sanely.
+            assert!(!self.channels.contains_key(&id), "Request ID conflict for ID {}", id);
+
+            self.channels.insert(id, listener);
         }
     }
 
@@ -66,13 +64,13 @@ impl MessageReceiver {
                         // therefore, if we're handling a valid response, it's guaranteed that the
                         // request's oneshot either is already in our hashmap or is in the mpsc.
                         // doing this here turns that guarantee of (A or B) into a guarantee of A.
-                        self.update_listeners()?;
+                        self.update_listeners();
                         self.channels
                             .remove(&request_id)
                             .expect(&format!("Received result for nonexistent request #{}", request_id))
                             .send(result)
                             // The application is free to drop the receiver for any reason.
-                            // If it does, it's not our problem; just drop the result accordingly.
+                            // If it does, it's not our problem; just discard the result accordingly.
                             .unwrap_or(());
                     }
                     Message::Event(event) => {

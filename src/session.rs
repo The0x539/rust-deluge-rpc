@@ -11,7 +11,7 @@ use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 use tokio_rustls::{TlsConnector, webpki};
 
-use crate::types::{ReadStream, WriteStream, List, Result, Event, Stream, AuthLevel, Error, RpcSender};
+use crate::types::{ReadStream, WriteStream, Result, Event, Stream, AuthLevel, RpcSender};
 use crate::encoding;
 use crate::receiver::MessageReceiver;
 use crate::wtf::NoCertificateVerification;
@@ -92,16 +92,11 @@ impl Session {
             .await
             .send((id, sender))
             .await
-            .map_err(|_| Error::ChannelClosed("rpc listeners"))?;
+            .expect("rpc listeners channel closed");
 
         self.send(request).await?;
 
-        // This is an RPC result inside a oneshot result.
-        let msg: List = match receiver.await {
-            Ok(Ok(msg)) => Ok(msg), // Success
-            Ok(Err(e)) => Err(Error::Rpc(e)), // RPC error
-            Err(_) => Err(Error::ChannelClosed("rpc response")), // Channel error
-        }?;
+        let msg = receiver.await.expect("rpc response channel closed")?;
 
         // Kinda annoying that serde::de::Error is a trait rather than a struct.
         // Otherwise, I might go for bincode here.

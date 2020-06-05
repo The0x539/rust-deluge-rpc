@@ -135,7 +135,6 @@ pub enum Error {
     Network(tokio::io::Error),
     Rpc(rpc_error::Error),
     BadResponse(rencode::Error),
-    ChannelClosed(&'static str),
 }
 
 impl From<tokio::io::Error> for Error {
@@ -154,7 +153,6 @@ impl std::fmt::Debug for Error {
             Self::Network(e) => e.fmt(f),
             Self::Rpc(e) => e.fmt(f),
             Self::BadResponse(e) => e.fmt(f),
-            Self::ChannelClosed(s) => write!(f, "Unexpected closure of {} channel", s),
         }
     }
 }
