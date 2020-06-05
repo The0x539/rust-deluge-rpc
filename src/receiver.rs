@@ -33,10 +33,10 @@ impl MessageReceiver {
         assert_eq!(ver, 1, "Unknown DelugeRPC protocol version: {}", ver);
 
         // Get message length
-        let len = self.stream.read_u32().await?;
+        let len = self.stream.read_u32().await? as usize;
 
         // Get message body
-        let mut buf = vec![0; len as usize];
+        let mut buf = vec![0u8; len];
         self.stream.read_exact(&mut buf).await?;
 
         // Decode (decompress+deserialize) message body
