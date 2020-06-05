@@ -1,4 +1,4 @@
-use serde::{Serialize, de::DeserializeOwned};
+use serde::Serialize;
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
@@ -8,10 +8,10 @@ use std::convert::TryFrom;
 use tokio::io::{self, AsyncWriteExt};
 use tokio::sync::{oneshot, mpsc, broadcast, Notify, Mutex};
 use tokio::net::TcpStream;
-use tokio::task::JoinHandle;
+use tokio::task::{self, JoinHandle};
 use tokio_rustls::{TlsConnector, webpki};
 
-use crate::types::{ReadStream, WriteStream, Result, Event, Stream, AuthLevel, RpcSender};
+use crate::types::{ReadStream, WriteStream, Result, Event, Stream, AuthLevel, RpcSender, DeserializeStatic};
 use crate::encoding;
 use crate::receiver::MessageReceiver;
 use crate::wtf::NoCertificateVerification;
@@ -43,7 +43,7 @@ impl Session {
         let shutdown_notify = Arc::new(Notify::new());
 
         let receiver = MessageReceiver::new(reader, request_recv, event_send.clone());
-        let receiver_thread = tokio::spawn(receiver.run(shutdown_notify.clone()));
+        let receiver_thread = task::spawn(receiver.run(shutdown_notify.clone()));
 
         Ok(Self {
             stream: Mutex::new(writer),
@@ -64,11 +64,12 @@ impl Session {
         stream.shutdown().await.map_err(|e| (stream, e))
     }
 
-    async fn send(&self, req: impl Serialize) -> Result<()> {
-        let body = encoding::encode(&[req]).unwrap();
-        let len = u32::try_from(body.len()).expect("request body too large");
-        let mut stream = self.stream.lock().await;
+    async fn send(&self, req: impl Serialize) -> io::Result<()> {
+        let body = task::block_in_place(|| encoding::encode(&[req]).unwrap());
 
+        let len = u32::try_from(body.len()).expect("request body too large");
+
+        let mut stream = self.stream.lock().await;
         stream.write_u8(1).await?;
         stream.write_u32(len).await?;
         stream.write_all(&body).await?;
@@ -77,7 +78,7 @@ impl Session {
         Ok(())
     }
 
-    pub(crate) async fn request<T: DeserializeOwned, U: Serialize, V: Serialize>(
+    pub(crate) async fn request<T: DeserializeStatic, U: Serialize, V: Serialize>(
         &self,
         method: &'static str,
         args: U,
@@ -98,12 +99,11 @@ impl Session {
 
         let msg = receiver.await.expect("rpc response channel closed")?;
 
-        // Kinda annoying that serde::de::Error is a trait rather than a struct.
-        // Otherwise, I might go for bincode here.
-        // Would also rather serialize on the receiver thread before sending.
-        // If I can figure that out, I might be able to reduce usage of serde_yaml.
-        // Not that serde_yaml's bad, but it's arbitrarily introducing a format.
-        let val = rencode::from_bytes(rencode::to_bytes(&msg)?.as_slice())?;
+        // dumb serialization round trip in order to convert from Vec<Value> to T
+        let val = task::spawn_blocking(move || {
+            let serialized = rencode::to_bytes(&msg)?;
+            rencode::from_bytes(&serialized)
+        }).await.unwrap()?;
 
         Ok(val)
     }

@@ -10,7 +10,7 @@ repository = "https://github.com/The0x539/rust-deluge-rpc"
 [dependencies]
 serde = { version = "1.0.106", features = ["derive"] }
 ron = "0.6.0"
-tokio = { version = "0.2", features = ["tcp", "rt-threaded", "io-util", "sync", "macros", "parking_lot"] }
+tokio = { version = "0.2", features = ["tcp", "rt-threaded", "io-util", "sync", "macros", "parking_lot", "blocking"] }
 tokio-rustls = "0.13.0"
 rustls = { version = "0.17.0", features = ["dangerous_configuration"] }
 libflate = "0.1.27"

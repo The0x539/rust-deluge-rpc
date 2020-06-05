@@ -1,4 +1,4 @@
-use serde::{Serialize, de::DeserializeOwned};
+use serde::Serialize;
 
 use fnv::FnvHashMap;
 
@@ -7,7 +7,7 @@ use std::net::{IpAddr, SocketAddr};
 
 use deluge_rpc_macro::rpc_class;
 
-use crate::types::{Result, TorrentOptions, AuthLevel, InfoHash, Query, FilterKey, FilterDict};
+use crate::types::{Result, TorrentOptions, AuthLevel, InfoHash, Query, FilterKey, FilterDict, DeserializeStatic};
 use crate::session::Session;
 
 rpc_class! {
@@ -55,12 +55,12 @@ rpc_class! {
     // I hardcoded these same mappings into the AuthLevel enum, so this isn't particularly useful, but hey
     pub rpc fn get_auth_levels_mappings(&self) -> (HashMap<String, AuthLevel>, HashMap<AuthLevel, String>);
 
-    pub rpc fn get_config<T: DeserializeOwned>(&self) -> HashMap<String, T>;
+    pub rpc fn get_config<T: DeserializeStatic>(&self) -> HashMap<String, T>;
 
-    pub rpc fn get_config_value<T: DeserializeOwned>(&self, key: &str) -> T;
+    pub rpc fn get_config_value<T: DeserializeStatic>(&self, key: &str) -> T;
 
     #[rpc(method = "get_config_values")]
-    pub rpc fn get_config_values_dyn<T: DeserializeOwned>(&self, keys: &[&str]) -> T;
+    pub rpc fn get_config_values_dyn<T: DeserializeStatic>(&self, keys: &[&str]) -> T;
 
     pub async fn get_config_values<T: Query>(&self) -> Result<T> {
         self.get_config_values_dyn(T::keys()).await
@@ -76,7 +76,7 @@ rpc_class! {
 
     // TODO: Account struct
     #[rpc(auth_level = "Admin")]
-    pub rpc fn get_known_accounts<T: DeserializeOwned>(&self) -> Vec<HashMap<String, T>>;
+    pub rpc fn get_known_accounts<T: DeserializeStatic>(&self) -> Vec<HashMap<String, T>>;
 
     pub rpc fn get_libtorrent_version(&self) -> String;
 
@@ -87,19 +87,19 @@ rpc_class! {
     pub rpc fn get_path_size(&self, path: &str) -> i64;
 
     // TODO: Proxy struct (low importance)
-    pub rpc fn get_proxy<T: DeserializeOwned>(&self) -> T;
+    pub rpc fn get_proxy<T: DeserializeStatic>(&self) -> T;
 
     pub rpc fn get_session_state(&self) -> Vec<InfoHash>;
 
     #[rpc(method = "get_session_status")]
-    pub rpc fn get_session_status_dyn<T: DeserializeOwned>(&self, keys: &[&str]) -> T;
+    pub rpc fn get_session_status_dyn<T: DeserializeStatic>(&self, keys: &[&str]) -> T;
 
     pub async fn get_session_status<T: Query>(&self) -> Result<T> {
         self.get_session_status_dyn(T::keys()).await
     }
 
     #[rpc(method = "get_torrent_status")]
-    pub rpc fn get_torrent_status_dyn<T: DeserializeOwned>(&self, torrent_id: InfoHash, keys: &[&str], diff: bool) -> T;
+    pub rpc fn get_torrent_status_dyn<T: DeserializeStatic>(&self, torrent_id: InfoHash, keys: &[&str], diff: bool) -> T;
 
     pub async fn get_torrent_status<T: Query>(&self, torrent_id: InfoHash) -> Result<T> {
         self.get_torrent_status_dyn(torrent_id, T::keys(), false).await
@@ -110,7 +110,7 @@ rpc_class! {
     }
 
     #[rpc(method = "get_torrents_status")]
-    pub rpc fn get_torrents_status_dyn<T: DeserializeOwned>(&self, filter_dict: Option<&FilterDict>, keys: &[&str], diff: bool) -> FnvHashMap<InfoHash, T>;
+    pub rpc fn get_torrents_status_dyn<T: DeserializeStatic>(&self, filter_dict: Option<&FilterDict>, keys: &[&str], diff: bool) -> FnvHashMap<InfoHash, T>;
 
     pub async fn get_torrents_status<T: Query>(&self, filter_dict: Option<&FilterDict>) -> Result<FnvHashMap<InfoHash, T>> {
         self.get_torrents_status_dyn(filter_dict, T::keys(), false).await
@@ -135,7 +135,7 @@ rpc_class! {
     pub rpc fn pause_torrents(&self, torrent_ids: &[InfoHash]);
 
     // TODO: MagnetMetadata struct
-    pub rpc fn prefetch_magnet_metadata<T: DeserializeOwned>(&self, magnet: &str, timeout: u64) -> (InfoHash, HashMap<String, T>);
+    pub rpc fn prefetch_magnet_metadata<T: DeserializeStatic>(&self, magnet: &str, timeout: u64) -> (InfoHash, HashMap<String, T>);
 
     pub rpc fn queue_bottom(&self, torrent_ids: &[InfoHash]);
 

@@ -1,10 +1,10 @@
-use serde::{Serialize, de::DeserializeOwned};
+use serde::Serialize;
 
 use std::collections::HashMap;
 
 use deluge_rpc_macro::rpc_class;
 
-use crate::types::{Result, AuthLevel, InfoHash};
+use crate::types::{Result, AuthLevel, InfoHash, DeserializeStatic};
 use crate::session::Session;
 
 rpc_class! {
@@ -19,7 +19,7 @@ rpc_class! {
     pub rpc fn remove_label(&self, label_id: &str);
 
     #[rpc(method = "get_options")]
-    pub rpc fn get_label_options<T: DeserializeOwned>(&self, label_id: &str) -> HashMap<String, T>;
+    pub rpc fn get_label_options<T: DeserializeStatic>(&self, label_id: &str) -> HashMap<String, T>;
 
     #[rpc(method = "set_options")]
     pub rpc fn set_label_options(&self, label_id: &str, options: &HashMap<String, impl Serialize>);
@@ -28,7 +28,7 @@ rpc_class! {
     pub rpc fn set_torrent_label(&self, torrent_id: InfoHash, label_id: &str);
 
     #[rpc(method = "get_config")]
-    pub rpc fn get_label_config<T: DeserializeOwned>(&self) -> HashMap<String, T>;
+    pub rpc fn get_label_config<T: DeserializeStatic>(&self) -> HashMap<String, T>;
 
     #[rpc(method = "set_config")]
     pub rpc fn set_label_config(&self, config: &HashMap<String, impl Serialize>);

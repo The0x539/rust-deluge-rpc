@@ -6,6 +6,7 @@ use crate::types::{ReadStream, RpcSender, Message, Event, Result};
 
 use tokio::io::AsyncReadExt;
 use tokio::sync::{mpsc, broadcast, Notify};
+use tokio::task;
 
 use futures::future::FutureExt;
 
@@ -39,7 +40,7 @@ impl MessageReceiver {
         self.stream.read_exact(&mut buf).await?;
 
         // Decode (decompress+deserialize) message body
-        let message = encoding::decode(&buf)?;
+        let message = task::spawn_blocking(move || encoding::decode(&buf)).await.unwrap()?;
 
         Ok(message)
     }

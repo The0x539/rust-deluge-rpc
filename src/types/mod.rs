@@ -123,9 +123,12 @@ option_struct! {
     pub super_seeding: bool,
 }
 
+pub trait DeserializeStatic: DeserializeOwned + Send + 'static {}
+impl<T: DeserializeOwned + Send + 'static> DeserializeStatic for T {}
+
 pub use deluge_rpc_macro::Query;
-pub trait Query: DeserializeOwned + Clone {
-    type Diff: DeserializeOwned + Default + Clone + PartialEq;
+pub trait Query: DeserializeStatic + Clone {
+    type Diff: DeserializeStatic + Default + Clone + PartialEq;
     fn keys() -> &'static [&'static str];
     fn update(&mut self, diff: Self::Diff) -> bool;
 }
