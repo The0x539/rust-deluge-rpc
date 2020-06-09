@@ -10,7 +10,7 @@ macro_rules! u8_enum {
         #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
         #[derive(::num_enum::TryFromPrimitive, ::num_enum::IntoPrimitive)]
         #[derive(::serde::Serialize, ::serde::Deserialize)]
-        #[serde(try_from = "u8", into = "u8")]
+        #[serde(into = "u8")]
         #[repr(u8)]
         $(#[$attr])*
         $vis enum $name {$(

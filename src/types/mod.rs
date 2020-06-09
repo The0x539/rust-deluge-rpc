@@ -65,13 +65,37 @@ impl std::fmt::Debug for InfoHash {
     }
 }
 
+// Ideally, all eight of these priorities would have formal names.
+// Deluge, however, seems to want to hide the fact that there *are* eight priorities.
+// We follow suit. Whatever.
+
 u8_enum! {
+    #[serde(try_from = "u8")]
+    enum TolerantFilePriority;
+    Skip = 0, Low1 = 1, Low2 = 2, Low3 = 3, Normal = 4, High5 = 5, High6 = 6, High7 = 7
+}
+
+u8_enum! {
+    #[serde(from = "TolerantFilePriority")]
     pub enum FilePriority = Normal;
 
     Skip = 0, Low = 1, Normal = 4, High = 7
 }
 
+impl From<TolerantFilePriority> for FilePriority {
+    fn from(value: TolerantFilePriority) -> Self {
+        match value as u8 {
+            0 => Self::Skip,
+            1..=3 => Self::Low,
+            4 => Self::Normal,
+            5..=7 => Self::High,
+            _ => unreachable!(),
+        }
+    }
+}
+
 u8_enum! {
+    #[serde(try_from = "u8")]
     pub enum AuthLevel = Normal;
 
     Nobody = 0, ReadOnly = 1, Normal = 5, Admin = 10
