@@ -1,5 +1,3 @@
-#![feature(str_strip)] // sorry
-
 mod encoding;
 mod session;
 mod receiver;
