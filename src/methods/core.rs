@@ -148,9 +148,10 @@ rpc_class! {
     #[rpc(auth_level = "Admin")]
     pub rpc fn remove_account(&self, username: &str);
 
-    pub rpc fn remove_torrent(&self, torrent_id: InfoHash, remove_data: bool);
+    pub rpc fn remove_torrent(&self, torrent_id: InfoHash, remove_data: bool) -> bool;
 
-    pub rpc fn remove_torrents(&self, torrent_ids: &[InfoHash], remove_data: bool);
+    // TODO: HashMap<InfoHash, Error>?
+    pub rpc fn remove_torrents(&self, torrent_ids: &[InfoHash], remove_data: bool) -> Vec<(InfoHash, String)>;
 
     pub rpc fn rename_files(&self, torrent_id: InfoHash, filenames: &[(u64, &str)]);
 
