@@ -1,14 +1,17 @@
-use libflate::zlib;
+use cloudflare_zlib as zlib;
 use serde::{Serialize, de::DeserializeOwned};
 use rencode;
 
+// TODO: represent zlib errors in Error type
+
 pub fn decode<T: DeserializeOwned>(input: &[u8]) -> rencode::Result<T> {
-    rencode::from_reader(zlib::Decoder::new(input).unwrap())
+    let inflated = zlib::inflate(input).expect("Decompression failed");
+    let decoded = rencode::from_bytes(&inflated)?;
+    Ok(decoded)
 }
 
 pub fn encode<T: Serialize>(input: T) -> rencode::Result<Vec<u8>> {
-    let mut encoder = zlib::Encoder::new(Vec::new()).unwrap();
-    rencode::to_writer(&mut encoder, &input)?;
-    let buf = encoder.finish().into_result().unwrap();
-    Ok(buf)
+    let encoded = rencode::to_bytes(&input)?;
+    let deflated = zlib::deflate(&encoded).expect("Compression failed");
+    Ok(deflated)
 }

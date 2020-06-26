@@ -13,7 +13,7 @@ ron = "0.6.0"
 tokio = { version = "0.2", features = ["tcp", "rt-threaded", "io-util", "sync", "macros", "parking_lot", "blocking"] }
 tokio-rustls = "0.13.0"
 rustls = { version = "0.17.0", features = ["dangerous_configuration"] }
-libflate = "0.1.27"
+cloudflare-zlib = "0.2.5"
 deluge-rpc-macro = "0.6.2"
 hex = { version = "0.4.2", features = ["serde"] }
 rencode = "0.2.1"
