@@ -99,11 +99,14 @@ impl Session {
 
         let msg = receiver.await.expect("rpc response channel closed")?;
 
-        // dumb serialization round trip in order to convert from Vec<Value> to T
-        let val = task::spawn_blocking(move || {
-            let serialized = rencode::to_bytes(&msg)?;
-            rencode::from_bytes(&serialized)
-        }).await.unwrap()?;
+        // TODO: "response was compliant with calling convention, but not API" error
+        let val: T = ron::Value::Seq(msg).into_rust().unwrap_or_else(|e| {
+            panic!(
+                "Error while converting value of type {}: {}",
+                std::any::type_name::<T>(),
+                e
+            )
+        });
 
         Ok(val)
     }
