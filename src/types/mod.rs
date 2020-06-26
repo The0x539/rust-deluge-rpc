@@ -11,6 +11,30 @@ use fnv::FnvHashMap;
 use std::collections::HashMap;
 pub use std::net::{IpAddr, SocketAddr};
 
+// BitTorrent infohashes are just SHA-1 checksums.
+// If they're not maliciously crafted, this means they should already be high-entropy.
+// Therefore, if we trust the source of the infohashes, then hashing the hashes seems pointless.
+// Even if the user somehow connects to a malicious DelugeRPC endpoint,
+// there would be more effective ways for the server to launch a DoS on the client,
+// and this isn't really a context where DoS resilience matters, anyway.
+#[derive(Default, Clone, Copy, Debug)]
+#[cfg(feature = "trust-infohashes")]
+pub struct PassThroughBuildHasher;
+
+#[cfg(feature = "trust-infohashes")]
+impl std::hash::BuildHasher for PassThroughBuildHasher {
+    type Hasher = hashers::null::PassThroughHasher;
+    fn build_hasher(&self) -> Self::Hasher {
+        Self::Hasher::default()
+    }
+}
+
+#[cfg(feature = "trust-infohashes")]
+pub type InfoHashBuildHasher = PassThroughBuildHasher;
+
+#[cfg(not(feature = "trust-infohashes"))]
+pub type InfoHashBuildHasher = fnv::FnvBuildHasher;
+
 use serde::{Serialize, Deserialize, de::DeserializeOwned};
 
 pub use ron::Value;
@@ -25,6 +49,7 @@ pub type RpcSender = tokio::sync::oneshot::Sender<rpc_error::Result<List>>;
 #[derive(Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
 #[serde(transparent)]
 pub struct InfoHash(#[serde(with = "hex")] [u8; 20]);
+pub type InfoHashMap<V> = HashMap<InfoHash, V, InfoHashBuildHasher>;
 
 impl hex::FromHex for InfoHash {
     type Error = <[u8; 20] as hex::FromHex>::Error;

@@ -7,6 +7,7 @@ mod methods;
 
 pub use types::{
     List, Dict,
+    InfoHashMap,
     IpAddr, SocketAddr,
     InfoHash, FilePriority, AuthLevel, TorrentOptions, TorrentState,
     FilterKey, FilterDict,
