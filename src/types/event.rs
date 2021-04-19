@@ -4,8 +4,8 @@ use deluge_rpc_macro::rpc_events;
 use enum_kinds::EnumKind;
 
 #[rpc_events]
-#[enum_kind(EventKind, derive(Hash))]
 #[derive(Debug, Clone, Deserialize, EnumKind)]
+#[enum_kind(EventKind, derive(Hash))]
 #[serde(tag = "0", content = "1")]
 pub enum Event {
     TorrentAdded(InfoHash, bool),
