@@ -1,6 +1,6 @@
 use crate::types::InfoHash;
 use hex::FromHex;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use std::str::FromStr;
 use thiserror::Error;
@@ -24,13 +24,14 @@ pub enum Error {
     Other(String),
 }
 
-lazy_static! {
-    static ref ALREADY_IN_SESSION: Regex =
-        Regex::new(r"^Torrent already in session \([0-9a-fA-F]{40}\)\.$").unwrap();
-    static ref ALREADY_BEING_ADDED: Regex =
-        Regex::new(r"^Torrent already being added \([0-9a-fA-F]{40}\)\.$").unwrap();
+macro_rules! regex {
+    ($name:ident = $val:literal) => {
+        static $name: Lazy<Regex> = Lazy::new(|| Regex::new($val).unwrap());
+    };
 }
 
+regex!(ALREADY_IN_SESSION = r"^Torrent already in session \([0-9a-fA-F]{40}\)\.$");
+regex!(ALREADY_BEING_ADDED = r"^Torrent already being added \([0-9a-fA-F]{40}\)\.$");
 static UNABLE_TO_ADD_MAGNET: &str = "Unable to add magnet, invalid magnet info: ";
 static MUST_SPECIFY_VALID_TORRENT: &str =
     "You must specify a valid torrent_info, torrent state or magnet.";
