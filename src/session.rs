@@ -57,7 +57,7 @@ impl Session {
     }
 
     pub async fn disconnect(self) -> std::result::Result<(), (Stream, io::Error)> {
-        self.shutdown_notify.notify();
+        self.shutdown_notify.notify_one();
         let read_stream = self.receiver_thread.await.expect("receiver thread panicked").expect("receiver thread errored");
         let write_stream = self.stream.into_inner();
         let mut stream = read_stream.unsplit(write_stream);
