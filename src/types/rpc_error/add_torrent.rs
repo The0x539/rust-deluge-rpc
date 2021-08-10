@@ -1,9 +1,9 @@
-use std::convert::From;
 use crate::types::InfoHash;
-use lazy_static::lazy_static;
-use lazy_regex::regex;
-use std::fmt;
 use hex::FromHex;
+use lazy_regex::regex;
+use lazy_static::lazy_static;
+use std::convert::From;
+use std::fmt;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Error {
@@ -24,7 +24,9 @@ impl fmt::Display for Error {
             Self::AlreadyBeingAdded(hash) => write!(f, "Torrent already being added: {}", hash),
             Self::UnableToAddMagnet(link) => write!(f, "Invalid magnet info: {}", link),
             Self::MustSpecifyValidTorrent => f.write_str("Must specify a valid torrent"),
-            Self::DecodingFiledumpFailed(decode_ex) => write!(f, "Decoding filedump failed: {}", decode_ex),
+            Self::DecodingFiledumpFailed(decode_ex) => {
+                write!(f, "Decoding filedump failed: {}", decode_ex)
+            }
             Self::UnableToAddToSession(ex) => write!(f, "Unable to add torrent to session: {}", ex),
             Self::Other(msg) => f.write_str(msg),
         }
@@ -38,11 +40,14 @@ impl From<&str> for Error {
             Self::AlreadyInSession(InfoHash::from_hex(&msg[28..68]).unwrap())
         } else if regex!(r"^Torrent already being added \([0-9a-fA-F]{40}\)\.$").is_match(msg) {
             Self::AlreadyBeingAdded(InfoHash::from_hex(&msg[29..69]).unwrap())
-        } else if let Some(magnet) = msg.strip_prefix("Unable to add magnet, invalid magnet info: ") {
+        } else if let Some(magnet) = msg.strip_prefix("Unable to add magnet, invalid magnet info: ")
+        {
             Self::UnableToAddMagnet(magnet.to_string())
         } else if msg == "You must specify a valid torrent_info, torrent state or magnet." {
             Self::MustSpecifyValidTorrent
-        } else if let Some(decode_ex) = msg.strip_prefix("Unable to add torrent, decoding filedump failed: ") {
+        } else if let Some(decode_ex) =
+            msg.strip_prefix("Unable to add torrent, decoding filedump failed: ")
+        {
             Self::DecodingFiledumpFailed(decode_ex.to_string())
         } else if let Some(ex) = msg.strip_prefix("Unable to add torrent to session: ") {
             Self::UnableToAddToSession(ex.to_string())

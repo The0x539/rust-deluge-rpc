@@ -1,3 +1,3 @@
-mod daemon;
 mod core;
+mod daemon;
 mod label;

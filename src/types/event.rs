@@ -1,7 +1,7 @@
-use serde::{Serialize, Serializer, Deserialize};
-use crate::types::{InfoHash, Value, List, TorrentState, IpAddr};
+use crate::types::{InfoHash, IpAddr, List, TorrentState, Value};
 use deluge_rpc_macro::rpc_events;
 use enum_kinds::EnumKind;
+use serde::{Deserialize, Serialize, Serializer};
 
 #[rpc_events]
 #[derive(Debug, Clone, Deserialize, EnumKind)]

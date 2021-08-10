@@ -4,8 +4,8 @@ use std::collections::HashMap;
 
 use deluge_rpc_macro::rpc_class;
 
-use crate::types::{Result, AuthLevel, InfoHash, DeserializeStatic};
 use crate::session::Session;
+use crate::types::{AuthLevel, DeserializeStatic, InfoHash, Result};
 
 rpc_class! {
     impl Session::label;

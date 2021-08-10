@@ -1,9 +1,9 @@
 mod add_torrent;
 use add_torrent::Error as AddTorrentError;
 
+use crate::types::{Dict, List, Value};
 use serde::Deserialize;
 use std::convert::From;
-use crate::types::{Value, List, Dict};
 use std::fmt;
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
@@ -23,12 +23,17 @@ impl fmt::Display for GenericError {
 
 impl From<(String, List, Dict, String)> for GenericError {
     fn from((exception, args, kwargs, traceback): (String, List, Dict, String)) -> Self {
-        Self { exception, args, kwargs, traceback }
+        Self {
+            exception,
+            args,
+            kwargs,
+            traceback,
+        }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Deserialize)]
-#[serde(from="GenericError")]
+#[serde(from = "GenericError")]
 pub enum SpecializedError {
     AddTorrent(AddTorrentError),
     Generic(GenericError),
@@ -46,7 +51,9 @@ impl fmt::Display for SpecializedError {
 impl From<GenericError> for SpecializedError {
     fn from(err: GenericError) -> Self {
         match (err.exception.as_str(), err.args.as_slice()) {
-            ("AddTorrentError", [Value::String(msg)]) => Self::AddTorrent(AddTorrentError::from(msg.as_str())),
+            ("AddTorrentError", [Value::String(msg)]) => {
+                Self::AddTorrent(AddTorrentError::from(msg.as_str()))
+            }
             _ => Self::Generic(err),
         }
     }

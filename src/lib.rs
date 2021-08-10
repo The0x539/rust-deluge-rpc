@@ -1,10 +1,12 @@
 mod encoding;
-mod session;
-mod receiver;
-mod wtf;
-mod types;
 mod methods;
+mod receiver;
+mod session;
+mod types;
+mod wtf;
 
+pub use session::Session;
+#[rustfmt::skip]
 pub use types::{
     List, Dict,
     InfoHashMap,
@@ -15,4 +17,3 @@ pub use types::{
     Error, Result,
     Event, EventKind,
 };
-pub use session::Session;

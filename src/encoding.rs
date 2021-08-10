@@ -1,6 +1,6 @@
 use cloudflare_zlib as zlib;
-use serde::{Serialize, de::DeserializeOwned};
 use rencode;
+use serde::{de::DeserializeOwned, Serialize};
 
 // TODO: represent zlib errors in Error type
 

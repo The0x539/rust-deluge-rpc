@@ -11,7 +11,7 @@ impl rustls::ServerCertVerifier for NoCertificateVerification {
         _: &rustls::RootCertStore,
         _: &[rustls::Certificate],
         _: webpki::DNSNameRef<'_>,
-        _: &[u8]
+        _: &[u8],
     ) -> Result<rustls::ServerCertVerified, rustls::TLSError> {
         Ok(rustls::ServerCertVerified::assertion())
     }

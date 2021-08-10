@@ -7,8 +7,11 @@ use std::net::{IpAddr, SocketAddr};
 
 use deluge_rpc_macro::rpc_class;
 
-use crate::types::{Result, TorrentOptions, AuthLevel, InfoHash, Query, FilterKey, FilterDict, DeserializeStatic, InfoHashMap};
 use crate::session::Session;
+use crate::types::{
+    AuthLevel, DeserializeStatic, FilterDict, FilterKey, InfoHash, InfoHashMap, Query, Result,
+    TorrentOptions,
+};
 
 rpc_class! {
     impl Session::core;

@@ -1,19 +1,26 @@
+use crate::types::{Event, List, Value};
+use num_enum::TryFromPrimitive;
 use serde::Deserialize;
 use std::convert::TryFrom;
-use crate::types::{Value, List, Event};
-use num_enum::TryFromPrimitive;
 
 use super::rpc_error::Result;
 
 #[derive(Deserialize, TryFromPrimitive)]
 #[repr(u8)]
 #[serde(try_from = "u8")]
-enum MessageType { Response = 1, Error = 2, Event = 3 }
+enum MessageType {
+    Response = 1,
+    Error = 2,
+    Event = 3,
+}
 
 #[derive(Debug, Deserialize)]
-#[serde(try_from="List")]
+#[serde(try_from = "List")]
 pub enum Message {
-    Response { request_id: i64, result: Result<List> },
+    Response {
+        request_id: i64,
+        result: Result<List>,
+    },
     Event(Event),
 }
 
@@ -39,9 +46,12 @@ impl TryFrom<List> for Message {
                 let data: List = data.collect();
                 let event = Value::Seq(data.clone())
                     .into_rust()
-                    .unwrap_or(Event::Unrecognized(data[0].clone().into_rust()?, data[1].clone().into_rust()?));
+                    .unwrap_or(Event::Unrecognized(
+                        data[0].clone().into_rust()?,
+                        data[1].clone().into_rust()?,
+                    ));
                 Self::Event(event)
-            },
+            }
         };
         Ok(val)
     }

@@ -1,19 +1,21 @@
 use serde::Serialize;
 
-use std::sync::Arc;
+use std::convert::TryFrom;
 use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
-use std::convert::TryFrom;
+use std::sync::Arc;
 
 use tokio::io::{self, AsyncWriteExt};
-use tokio::sync::{oneshot, mpsc, broadcast, Notify, Mutex};
 use tokio::net::TcpStream;
+use tokio::sync::{broadcast, mpsc, oneshot, Mutex, Notify};
 use tokio::task::{self, JoinHandle};
-use tokio_rustls::{TlsConnector, webpki};
+use tokio_rustls::{webpki, TlsConnector};
 
-use crate::types::{ReadStream, WriteStream, Result, Event, Stream, AuthLevel, RpcSender, DeserializeStatic};
 use crate::encoding;
 use crate::receiver::MessageReceiver;
+use crate::types::{
+    AuthLevel, DeserializeStatic, Event, ReadStream, Result, RpcSender, Stream, WriteStream,
+};
 use crate::wtf::NoCertificateVerification;
 
 #[derive(Debug)]
@@ -30,7 +32,9 @@ pub struct Session {
 impl Session {
     pub async fn connect(endpoint: impl tokio::net::ToSocketAddrs) -> io::Result<Self> {
         let mut tls_config = rustls::ClientConfig::new();
-        tls_config.dangerous().set_certificate_verifier(Arc::new(NoCertificateVerification));
+        tls_config
+            .dangerous()
+            .set_certificate_verifier(Arc::new(NoCertificateVerification));
         let tls_connector = TlsConnector::from(Arc::new(tls_config));
 
         let tcp_stream = TcpStream::connect(endpoint).await?;
@@ -58,7 +62,11 @@ impl Session {
 
     pub async fn disconnect(self) -> std::result::Result<(), (Stream, io::Error)> {
         self.shutdown_notify.notify_one();
-        let read_stream = self.receiver_thread.await.expect("receiver thread panicked").expect("receiver thread errored");
+        let read_stream = self
+            .receiver_thread
+            .await
+            .expect("receiver thread panicked")
+            .expect("receiver thread errored");
         let write_stream = self.stream.into_inner();
         let mut stream = read_stream.unsplit(write_stream);
         stream.shutdown().await.map_err(|e| (stream, e))

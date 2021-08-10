@@ -2,10 +2,10 @@ use fnv::FnvHashMap;
 use std::sync::Arc;
 
 use crate::encoding;
-use crate::types::{ReadStream, RpcSender, Message, Event, Result};
+use crate::types::{Event, Message, ReadStream, Result, RpcSender};
 
 use tokio::io::AsyncReadExt;
-use tokio::sync::{mpsc, broadcast, Notify};
+use tokio::sync::{broadcast, mpsc, Notify};
 use tokio::task;
 
 use futures::future::FutureExt;
@@ -23,7 +23,12 @@ impl MessageReceiver {
         listeners: mpsc::Receiver<(i64, RpcSender)>,
         events: broadcast::Sender<Event>,
     ) -> Self {
-        Self { stream, listeners, events, channels: FnvHashMap::default() }
+        Self {
+            stream,
+            listeners,
+            events,
+            channels: FnvHashMap::default(),
+        }
     }
 
     async fn recv(&mut self) -> Result<Message> {
@@ -40,7 +45,9 @@ impl MessageReceiver {
         self.stream.read_exact(&mut buf).await?;
 
         // Decode (decompress+deserialize) message body
-        let message = task::spawn_blocking(move || encoding::decode(&buf)).await.unwrap()?;
+        let message = task::spawn_blocking(move || encoding::decode(&buf))
+            .await
+            .unwrap()?;
 
         Ok(message)
     }
@@ -50,7 +57,11 @@ impl MessageReceiver {
             let (id, listener) = res.expect("rpc listeners channel closed");
 
             // This is unrealistic if request IDs are chosen sanely.
-            assert!(!self.channels.contains_key(&id), "Request ID conflict for ID {}", id);
+            assert!(
+                !self.channels.contains_key(&id),
+                "Request ID conflict for ID {}",
+                id,
+            );
 
             self.channels.insert(id, listener);
         }

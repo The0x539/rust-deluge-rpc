@@ -1,7 +1,8 @@
+mod event;
 mod message;
 mod rpc_error;
-mod event;
-#[macro_use] mod macros;
+#[macro_use]
+mod macros;
 
 pub use event::{Event, EventKind};
 pub use message::Message;
@@ -35,7 +36,7 @@ pub type InfoHashBuildHasher = PassThroughBuildHasher;
 #[cfg(not(feature = "trust-infohashes"))]
 pub type InfoHashBuildHasher = fnv::FnvBuildHasher;
 
-use serde::{Serialize, Deserialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 pub use ron::Value;
 pub type List = Vec<Value>;
@@ -190,13 +191,19 @@ pub enum Error {
 }
 
 impl From<tokio::io::Error> for Error {
-    fn from(e: tokio::io::Error) -> Self { Self::Network(e) }
+    fn from(e: tokio::io::Error) -> Self {
+        Self::Network(e)
+    }
 }
 impl From<rpc_error::Error> for Error {
-    fn from(e: rpc_error::Error) -> Self { Self::Rpc(e) }
+    fn from(e: rpc_error::Error) -> Self {
+        Self::Rpc(e)
+    }
 }
 impl From<rencode::Error> for Error {
-    fn from(e: rencode::Error) -> Self { Self::BadResponse(e) }
+    fn from(e: rencode::Error) -> Self {
+        Self::BadResponse(e)
+    }
 }
 
 impl std::fmt::Debug for Error {

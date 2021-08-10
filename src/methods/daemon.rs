@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use deluge_rpc_macro::rpc_class;
 
-use crate::types::{Result, AuthLevel, EventKind};
 use crate::session::Session;
+use crate::types::{AuthLevel, EventKind, Result};
 
 rpc_class! {
     impl Session::daemon;
