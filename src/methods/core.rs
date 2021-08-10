@@ -36,6 +36,7 @@ rpc_class! {
     pub rpc fn create_account(&self, username: &str, password: &str, auth_level: AuthLevel);
 
     // FORGIVE ME: I have no idea whether these types are correct.
+    #[allow(clippy::too_many_arguments)]
     pub rpc fn create_torrent(
         &self,
         path: &str,

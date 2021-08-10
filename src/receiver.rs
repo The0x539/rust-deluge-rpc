@@ -79,7 +79,7 @@ impl MessageReceiver {
                         self.update_listeners();
                         self.channels
                             .remove(&request_id)
-                            .expect(&format!("Received result for nonexistent request #{}", request_id))
+                            .unwrap_or_else(|| panic!("Received result for nonexistent request #{}", request_id))
                             .send(result)
                             // The application is free to drop the receiver for any reason.
                             // If it does, it's not our problem; just discard the result accordingly.
