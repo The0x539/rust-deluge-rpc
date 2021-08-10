@@ -4,21 +4,16 @@ use add_torrent::Error as AddTorrentError;
 use crate::types::{Dict, List, Value};
 use serde::Deserialize;
 use std::convert::From;
-use std::fmt;
+use thiserror::Error;
 
-#[derive(Debug, PartialEq, Eq, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Error)]
 #[serde(from = "(String, List, Dict, String)")]
+#[error("{traceback}")]
 pub struct GenericError {
     pub exception: String,
     pub args: List,
     pub kwargs: Dict,
     pub traceback: String,
-}
-
-impl fmt::Display for GenericError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&self.traceback)
-    }
 }
 
 impl From<(String, List, Dict, String)> for GenericError {
@@ -32,28 +27,19 @@ impl From<(String, List, Dict, String)> for GenericError {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Error)]
 #[serde(from = "GenericError")]
 pub enum SpecializedError {
+    #[error("AddTorrentError: {0}")]
     AddTorrent(AddTorrentError),
+    #[error("{0}")]
     Generic(GenericError),
-}
-
-impl fmt::Display for SpecializedError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::AddTorrent(e) => write!(f, "AddTorrentError: {}", e),
-            Self::Generic(e) => f.write_str(&e.to_string()),
-        }
-    }
 }
 
 impl From<GenericError> for SpecializedError {
     fn from(err: GenericError) -> Self {
         match (err.exception.as_str(), err.args.as_slice()) {
-            ("AddTorrentError", [Value::String(msg)]) => {
-                Self::AddTorrent(AddTorrentError::from(msg.as_str()))
-            }
+            ("AddTorrentError", [Value::String(msg)]) => Self::AddTorrent(msg.parse().unwrap()),
             _ => Self::Generic(err),
         }
     }
