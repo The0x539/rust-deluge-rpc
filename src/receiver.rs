@@ -56,14 +56,10 @@ impl MessageReceiver {
         while let Some(res) = self.listeners.recv().now_or_never() {
             let (id, listener) = res.expect("rpc listeners channel closed");
 
-            // This is unrealistic if request IDs are chosen sanely.
-            assert!(
-                !self.channels.contains_key(&id),
-                "Request ID conflict for ID {}",
-                id,
-            );
-
-            self.channels.insert(id, listener);
+            if let Some(_old_listener) = self.channels.insert(id, listener) {
+                // This is unrealistic if request IDs are chosen sanely.
+                panic!("Request ID conflict for ID {}", id);
+            }
         }
     }
 
