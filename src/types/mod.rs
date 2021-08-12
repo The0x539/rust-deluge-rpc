@@ -8,6 +8,7 @@ pub use event::{Event, EventKind};
 pub use message::Message;
 
 use fnv::FnvHashMap;
+use thiserror::Error;
 
 use std::collections::HashMap;
 pub use std::net::{IpAddr, SocketAddr};
@@ -184,26 +185,14 @@ pub trait Query: DeserializeStatic + Clone {
 }
 
 // TODO: Incorporate serde errors
+#[derive(Error)]
 pub enum Error {
-    Network(tokio::io::Error),
-    Rpc(rpc_error::Error),
-    BadResponse(rencode::Error),
-}
-
-impl From<tokio::io::Error> for Error {
-    fn from(e: tokio::io::Error) -> Self {
-        Self::Network(e)
-    }
-}
-impl From<rpc_error::Error> for Error {
-    fn from(e: rpc_error::Error) -> Self {
-        Self::Rpc(e)
-    }
-}
-impl From<rencode::Error> for Error {
-    fn from(e: rencode::Error) -> Self {
-        Self::BadResponse(e)
-    }
+    #[error("Network error: {0}")]
+    Network(#[from] tokio::io::Error),
+    #[error("RPC error: {0}")]
+    Rpc(#[from] rpc_error::Error),
+    #[error("Response deserialization error: {0}")]
+    BadResponse(#[from] rencode::Error),
 }
 
 impl std::fmt::Debug for Error {
