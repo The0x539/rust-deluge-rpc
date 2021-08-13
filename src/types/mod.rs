@@ -6,6 +6,7 @@ mod macros;
 
 pub use event::{Event, EventKind};
 pub use message::Message;
+pub use rpc_error::{AddTorrentError, GenericError as GenericRpcError, RpcError};
 
 use fnv::FnvHashMap;
 use thiserror::Error;

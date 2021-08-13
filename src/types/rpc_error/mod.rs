@@ -1,5 +1,5 @@
-mod add_torrent;
-use add_torrent::Error as AddTorrentError;
+pub mod add_torrent;
+pub use add_torrent::Error as AddTorrentError;
 
 use crate::types::{Dict, List, Value};
 use serde::Deserialize;
@@ -29,14 +29,14 @@ impl From<(String, List, Dict, String)> for GenericError {
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Error)]
 #[serde(from = "GenericError")]
-pub enum SpecializedError {
+pub enum RpcError {
     #[error("AddTorrentError: {0}")]
     AddTorrent(AddTorrentError),
     #[error("{0}")]
     Generic(GenericError),
 }
 
-impl From<GenericError> for SpecializedError {
+impl From<GenericError> for RpcError {
     fn from(err: GenericError) -> Self {
         match (err.exception.as_str(), err.args.as_slice()) {
             ("AddTorrentError", [Value::String(msg)]) => Self::AddTorrent(msg.parse().unwrap()),
@@ -45,5 +45,5 @@ impl From<GenericError> for SpecializedError {
     }
 }
 
-pub type Error = SpecializedError;
-pub type Result<T> = std::result::Result<T, SpecializedError>;
+pub type Error = RpcError;
+pub type Result<T> = std::result::Result<T, RpcError>;

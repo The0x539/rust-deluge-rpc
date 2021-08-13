@@ -2,7 +2,7 @@ mod encoding;
 mod methods;
 mod receiver;
 mod session;
-mod types;
+pub mod types;
 mod wtf;
 
 pub use session::Session;
