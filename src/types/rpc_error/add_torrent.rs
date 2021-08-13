@@ -43,10 +43,10 @@ impl FromStr for Error {
     fn from_str(msg: &str) -> Result<Self, Self::Err> {
         // TODO: order conditionals based on likelihood of occurrence
         Ok(if ALREADY_IN_SESSION.is_match(msg) {
-            let hash = InfoHash::from_hex(&msg[28..][..20]).unwrap();
+            let hash = InfoHash::from_hex(&msg[28..][..40]).unwrap();
             Self::AlreadyInSession(hash)
         } else if ALREADY_BEING_ADDED.is_match(msg) {
-            let hash = InfoHash::from_hex(&msg[29..][..20]).unwrap();
+            let hash = InfoHash::from_hex(&msg[29..][..40]).unwrap();
             Self::AlreadyBeingAdded(hash)
         } else if let Some(magnet) = msg.strip_prefix(UNABLE_TO_ADD_MAGNET) {
             Self::UnableToAddMagnet(magnet.to_owned())
