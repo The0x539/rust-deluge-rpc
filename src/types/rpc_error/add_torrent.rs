@@ -24,6 +24,15 @@ pub enum Error {
     Other(String),
 }
 
+impl Error {
+    pub fn ok_if_added(self) -> Result<InfoHash, Self> {
+        match self {
+            Self::AlreadyInSession(h) | Self::AlreadyBeingAdded(h) => Ok(h),
+            e => Err(e),
+        }
+    }
+}
+
 macro_rules! regex {
     ($name:ident = $val:literal) => {
         static $name: Lazy<Regex> = Lazy::new(|| Regex::new($val).unwrap());

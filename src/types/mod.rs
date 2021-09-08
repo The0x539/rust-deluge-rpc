@@ -196,6 +196,15 @@ pub enum Error {
     BadResponse(#[from] rencode::Error),
 }
 
+impl Error {
+    pub fn ok_if_added(self) -> Result<InfoHash> {
+        match self {
+            Self::Rpc(e) => e.ok_if_added().map_err(Self::Rpc),
+            e => Err(e),
+        }
+    }
+}
+
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {

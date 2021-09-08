@@ -1,7 +1,7 @@
 pub mod add_torrent;
 pub use add_torrent::Error as AddTorrentError;
 
-use crate::types::{Dict, List, Value};
+use crate::types::{Dict, InfoHash, List, Value};
 use serde::Deserialize;
 use std::convert::From;
 use thiserror::Error;
@@ -34,6 +34,15 @@ pub enum RpcError {
     AddTorrent(AddTorrentError),
     #[error("{0}")]
     Generic(GenericError),
+}
+
+impl RpcError {
+    pub fn ok_if_added(self) -> Result<InfoHash> {
+        match self {
+            Self::AddTorrent(e) => e.ok_if_added().map_err(Self::AddTorrent),
+            e => Err(e),
+        }
+    }
 }
 
 impl From<GenericError> for RpcError {
