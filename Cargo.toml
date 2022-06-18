@@ -12,8 +12,8 @@ default = ["trust-infohashes"]
 trust-infohashes = ["hashers"]
 
 [dependencies]
-serde = { version = "1.0.106", features = ["derive"] }
-ron = "0.6.0"
+serde = { version = "1.0.137", features = ["derive"] }
+serde-value = "0.7.0"
 tokio = { version = "1.9.0", features = ["net", "rt-multi-thread", "io-util", "sync", "macros", "parking_lot"] }
 tokio-rustls = "0.22.0"
 rustls = { version = "0.19.1", features = ["dangerous_configuration"] }

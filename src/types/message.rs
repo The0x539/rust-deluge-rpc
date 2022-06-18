@@ -25,31 +25,32 @@ pub enum Message {
 }
 
 impl TryFrom<List> for Message {
-    type Error = ron::Error;
+    type Error = serde_value::DeserializerError;
 
-    fn try_from(data: List) -> ron::Result<Self> {
+    fn try_from(data: List) -> Result<Self, Self::Error> {
         let mut data = data.into_iter();
-        let msg_type = data.next().unwrap().into_rust()?;
+        let msg_type = data.next().unwrap().deserialize_into()?;
         let val = match msg_type {
             MessageType::Response => Self::Response {
-                request_id: data.next().unwrap().into_rust()?,
+                request_id: data.next().unwrap().deserialize_into()?,
                 result: Ok(match data.next().unwrap() {
                     Value::Seq(x) => x,
                     x => vec![x],
                 }),
             },
             MessageType::Error => Self::Response {
-                request_id: data.next().unwrap().into_rust()?,
-                result: Err(Value::Seq(data.collect()).into_rust()?),
+                request_id: data.next().unwrap().deserialize_into()?,
+                result: Err(Value::Seq(data.collect()).deserialize_into()?),
             },
             MessageType::Event => {
                 let data: List = data.collect();
-                let event = Value::Seq(data.clone())
-                    .into_rust()
-                    .unwrap_or(Event::Unrecognized(
-                        data[0].clone().into_rust()?,
-                        data[1].clone().into_rust()?,
-                    ));
+                let event =
+                    Value::Seq(data.clone())
+                        .deserialize_into()
+                        .unwrap_or(Event::Unrecognized(
+                            data[0].clone().deserialize_into()?,
+                            data[1].clone().deserialize_into()?,
+                        ));
                 Self::Event(event)
             }
         };

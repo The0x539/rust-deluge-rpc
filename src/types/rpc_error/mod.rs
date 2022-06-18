@@ -55,4 +55,4 @@ impl From<GenericError> for RpcError {
 }
 
 pub type Error = RpcError;
-pub type Result<T> = std::result::Result<T, RpcError>;
+pub type Result<T, E = RpcError> = std::result::Result<T, E>;

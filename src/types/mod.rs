@@ -40,7 +40,7 @@ pub type InfoHashBuildHasher = fnv::FnvBuildHasher;
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-pub use ron::Value;
+pub use serde_value::Value;
 pub type List = Vec<Value>;
 pub type Dict = HashMap<String, Value>;
 

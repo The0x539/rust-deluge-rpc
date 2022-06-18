@@ -108,13 +108,15 @@ impl Session {
         let msg = receiver.await.expect("rpc response channel closed")?;
 
         // TODO: "response was compliant with calling convention, but not API" error
-        let val: T = ron::Value::Seq(msg).into_rust().unwrap_or_else(|e| {
-            panic!(
-                "Error while converting value of type {}: {}",
-                std::any::type_name::<T>(),
-                e
-            )
-        });
+        let val: T = serde_value::Value::Seq(msg)
+            .deserialize_into()
+            .unwrap_or_else(|e| {
+                panic!(
+                    "Error while converting value of type {}: {}",
+                    std::any::type_name::<T>(),
+                    e
+                )
+            });
 
         Ok(val)
     }
