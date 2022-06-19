@@ -9,7 +9,7 @@ use tokio::io::{self, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::{broadcast, mpsc, oneshot, Mutex, Notify};
 use tokio::task::{self, JoinHandle};
-use tokio_rustls::{webpki, TlsConnector};
+use tokio_rustls::TlsConnector;
 
 use crate::encoding;
 use crate::receiver::MessageReceiver;
@@ -31,15 +31,16 @@ pub struct Session {
 
 impl Session {
     pub async fn connect(endpoint: impl tokio::net::ToSocketAddrs) -> io::Result<Self> {
-        let mut tls_config = rustls::ClientConfig::new();
-        tls_config
-            .dangerous()
-            .set_certificate_verifier(Arc::new(NoCertificateVerification));
+        let tls_config = rustls::ClientConfig::builder()
+            .with_safe_defaults()
+            .with_custom_certificate_verifier(Arc::new(NoCertificateVerification))
+            .with_no_client_auth();
+
         let tls_connector = TlsConnector::from(Arc::new(tls_config));
 
         let tcp_stream = TcpStream::connect(endpoint).await?;
-        let stupid_dns_ref = webpki::DNSNameRef::try_from_ascii_str("foo").unwrap();
-        let stream = tls_connector.connect(stupid_dns_ref, tcp_stream).await?;
+        let server_name = rustls::ServerName::IpAddress(tcp_stream.peer_addr()?.ip());
+        let stream = tls_connector.connect(server_name, tcp_stream).await?;
 
         let (reader, writer) = io::split(stream);
         let (request_send, request_recv) = mpsc::channel(100);
